@@ -5,12 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
 import 'providers/daily_message_provider.dart';
 import 'providers/power_provider.dart';
+import 'ui/screens/access_screen.dart';
 import 'ui/screens/home_screen.dart';
-import 'ui/screens/login_screen.dart';
 import 'ui/screens/my_screen.dart';
 import 'ui/screens/open_detail_screen.dart';
 import 'ui/screens/open_screen.dart';
-import 'ui/screens/signup_screen.dart';
 import 'ui/screens/tune_screen.dart';
 import 'ui/shell/radio_app_shell.dart';
 
@@ -28,7 +27,7 @@ const _tabs = [
   _TabConfig('MY', '/my'),
 ];
 
-const _authRoutes = ['/login', '/signup'];
+const _authRoutes = ['/access'];
 
 int _tabIndexForLocation(String location) {
   final index = _tabs.indexWhere((tab) => location.startsWith(tab.path));
@@ -49,42 +48,30 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation:
-        authStateListenable.value.isSignedIn ? '/home' : '/login',
+        authStateListenable.value.isSignedIn ? '/home' : '/access',
     refreshListenable: authStateListenable,
     routes: [
       GoRoute(
-        path: '/login',
+        path: '/access',
         builder: (context, state) {
+          final modeParam = state.uri.queryParameters['mode'];
+          final mode =
+              modeParam == 'signup' ? AccessMode.signup : AccessMode.login;
           return Consumer(
             builder: (context, ref, _) {
               return RadioAppShell(
                 indicatorLabel: 'ACCESS',
                 tabIndex: _authIndexForLocation(state.uri.path),
                 showControls: false,
+                enableIndicatorNudge: false,
+                indicatorLabelPadding: 2,
+                indicatorLeftReserved: 58,
+                needlePositionOverride: 0.06,
                 onPower: () {
                   final notifier = ref.read(powerStateProvider.notifier);
                   notifier.state = !notifier.state;
                 },
-                child: const LoginScreen(),
-              );
-            },
-          );
-        },
-      ),
-      GoRoute(
-        path: '/signup',
-        builder: (context, state) {
-          return Consumer(
-            builder: (context, ref, _) {
-              return RadioAppShell(
-                indicatorLabel: 'ACCESS',
-                tabIndex: _authIndexForLocation(state.uri.path),
-                showControls: false,
-                onPower: () {
-                  final notifier = ref.read(powerStateProvider.notifier);
-                  notifier.state = !notifier.state;
-                },
-                child: const SignUpScreen(),
+                child: AccessScreen(mode: mode),
               );
             },
           );
@@ -129,7 +116,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            pageBuilder: (context, state) {
+              return CustomTransitionPage(
+                key: state.pageKey,
+                child: const HomeScreen(),
+                transitionDuration: const Duration(milliseconds: 220),
+                transitionsBuilder: (context, animation, secondary, child) {
+                  final fade = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                  );
+                  final scale = Tween<double>(begin: 0.98, end: 1.0)
+                      .chain(CurveTween(curve: Curves.easeOutCubic))
+                      .animate(animation);
+                  return FadeTransition(
+                    opacity: fade,
+                    child: ScaleTransition(scale: scale, child: child),
+                  );
+                },
+              );
+            },
           ),
           GoRoute(
             path: '/tune',
@@ -157,10 +163,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       final signedIn = authStateListenable.value.isSignedIn;
-      final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
+      final loggingIn = state.matchedLocation == '/access';
       if (!signedIn && !loggingIn) {
-        return '/login';
+        return '/access';
       }
       if (signedIn && loggingIn) {
         return '/home';

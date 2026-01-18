@@ -69,6 +69,11 @@ flutter:
     - assets/textures/noise.png
     - assets/icon/app_icon.png
 
+  fonts:
+    - family: ChosunCentennial
+      fonts:
+        - asset: assets/fonts/ChosunCentennial_otf.otf
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
@@ -81,11 +86,6 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   # fonts:
-  flutter:
-    fonts:
-      - family: ChosunCentennial
-        fonts:
-          - asset: assets/fonts/ChosunCentennial_otf.otf
   #   - family: Schyler
   #     fonts:
   #       - asset: fonts/Schyler-Regular.ttf

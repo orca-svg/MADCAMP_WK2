@@ -187,7 +187,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             TextButton(
                               onPressed: _isSubmitting
                                   ? null
-                                  : () => context.go('/login'),
+                                  : () => context.go('/access'),
                               child: const Text('Back to login'),
                             ),
                           ],

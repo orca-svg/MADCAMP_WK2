@@ -11,10 +11,10 @@ class SpeakerContentArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(24),
           color: const Color(0xB8141210),
           border: Border.all(
             color: const Color(0x38C9A24C),
@@ -42,10 +42,10 @@ class SpeakerContentArea extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(24),
                   color: const Color(0xB8141210),
                   gradient: const LinearGradient(
                     colors: [Color(0xFF2C2724), Color(0xFF241F1C)],
@@ -70,7 +70,7 @@ class SpeakerContentArea extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(10),
                       child: child,
                     ),
                   ],

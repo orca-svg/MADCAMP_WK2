@@ -39,7 +39,6 @@ class MyScreen extends ConsumerWidget {
                 value: myPosts.length.toString(),
               ),
             ),
-            const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
                 label: '북마크',
@@ -52,16 +51,16 @@ class MyScreen extends ConsumerWidget {
         Text('내가 쓴 사연', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
             itemCount: myPosts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final post = myPosts[index];
               return Container(
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0x1AFFFFFF),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,10 +106,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0x1AFFFFFF),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

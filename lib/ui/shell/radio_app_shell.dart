@@ -10,6 +10,10 @@ class RadioAppShell extends StatelessWidget {
     required this.child,
     required this.indicatorLabel,
     this.tabIndex = 0,
+    this.indicatorLeftReserved = 86,
+    this.indicatorLabelPadding = 14,
+    this.enableIndicatorNudge = true,
+    this.needlePositionOverride,
     this.showControls = true,
     this.powerOn = false,
     this.onPrev,
@@ -20,6 +24,10 @@ class RadioAppShell extends StatelessWidget {
   final Widget child;
   final String indicatorLabel;
   final int tabIndex;
+  final double indicatorLeftReserved;
+  final double indicatorLabelPadding;
+  final bool enableIndicatorNudge;
+  final double? needlePositionOverride;
   final bool showControls;
   final bool powerOn;
   final VoidCallback? onPrev;
@@ -40,6 +48,10 @@ class RadioAppShell extends StatelessWidget {
               child: _RadioLayout(
                 indicatorLabel: indicatorLabel,
                 tabIndex: tabIndex,
+                indicatorLeftReserved: indicatorLeftReserved,
+                indicatorLabelPadding: indicatorLabelPadding,
+                enableIndicatorNudge: enableIndicatorNudge,
+                needlePositionOverride: needlePositionOverride,
                 showControls: showControls,
                 powerOn: powerOn,
                 onPrev: onPrev,
@@ -60,6 +72,10 @@ class _RadioLayout extends StatelessWidget {
     required this.child,
     required this.indicatorLabel,
     required this.tabIndex,
+    required this.indicatorLeftReserved,
+    required this.indicatorLabelPadding,
+    required this.enableIndicatorNudge,
+    required this.needlePositionOverride,
     required this.showControls,
     required this.powerOn,
     this.onPrev,
@@ -70,6 +86,10 @@ class _RadioLayout extends StatelessWidget {
   final Widget child;
   final String indicatorLabel;
   final int tabIndex;
+  final double indicatorLeftReserved;
+  final double indicatorLabelPadding;
+  final bool enableIndicatorNudge;
+  final double? needlePositionOverride;
   final bool showControls;
   final bool powerOn;
   final VoidCallback? onPrev;
@@ -83,6 +103,10 @@ class _RadioLayout extends StatelessWidget {
         RadioTopIndicator(
           indicatorLabel: indicatorLabel,
           tabIndex: tabIndex,
+          indicatorLeftReserved: indicatorLeftReserved,
+          indicatorLabelPadding: indicatorLabelPadding,
+          enableIndicatorNudge: enableIndicatorNudge,
+          needlePositionOverride: needlePositionOverride,
         ),
         const SizedBox(height: 14),
         Expanded(
@@ -146,8 +170,11 @@ class RadioContentViewport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SpeakerContentArea(
-      child: child ?? const SizedBox.shrink(),
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: SpeakerContentArea(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
@@ -157,16 +184,29 @@ class RadioTopIndicator extends StatelessWidget {
     super.key,
     required this.indicatorLabel,
     required this.tabIndex,
+    required this.indicatorLeftReserved,
+    required this.indicatorLabelPadding,
+    required this.enableIndicatorNudge,
+    required this.needlePositionOverride,
   });
 
   final String indicatorLabel;
   final int tabIndex;
+  final double indicatorLeftReserved;
+  final double indicatorLabelPadding;
+  final bool enableIndicatorNudge;
+  final double? needlePositionOverride;
 
   @override
   Widget build(BuildContext context) {
     return RetroIndicatorBar(
       label: indicatorLabel,
-      needlePosition: _needlePositionForTab(tabIndex),
+      needlePosition:
+          needlePositionOverride ?? _needlePositionForTab(tabIndex),
+      leftReserved: indicatorLeftReserved,
+      labelPadding: indicatorLabelPadding,
+      tabIndex: tabIndex,
+      enableNudge: enableIndicatorNudge,
     );
   }
 

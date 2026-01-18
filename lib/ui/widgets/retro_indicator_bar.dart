@@ -1,85 +1,156 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-
-class RetroIndicatorBar extends StatelessWidget {
+class RetroIndicatorBar extends StatefulWidget {
   const RetroIndicatorBar({
     super.key,
     required this.label,
     required this.needlePosition,
+    this.leftReserved = 86,
+    this.labelPadding = 14,
+    this.tabIndex = 0,
+    this.enableNudge = true,
   });
 
   final String label;
   final double needlePosition;
+  final double leftReserved;
+  final double labelPadding;
+  final int tabIndex;
+  final bool enableNudge;
+
+  @override
+  State<RetroIndicatorBar> createState() => _RetroIndicatorBarState();
+}
+
+class _RetroIndicatorBarState extends State<RetroIndicatorBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _nudge;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+    );
+    _nudge = const AlwaysStoppedAnimation(0);
+  }
+
+  @override
+  void didUpdateWidget(covariant RetroIndicatorBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enableNudge && widget.tabIndex != oldWidget.tabIndex) {
+      final direction = widget.tabIndex > oldWidget.tabIndex ? 1.0 : -1.0;
+      _nudge = TweenSequence<double>([
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 0.0, end: 0.015 * direction)
+              .chain(CurveTween(curve: Curves.easeOut)),
+          weight: 1,
+        ),
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 0.015 * direction, end: 0.0)
+              .chain(CurveTween(curve: Curves.easeIn)),
+          weight: 1,
+        ),
+      ]).animate(_controller);
+      HapticFeedback.lightImpact();
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFE5E5E5),
-            Color(0xFFBEBEBE),
-            Color(0xFFEDEDED),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        image: const DecorationImage(
-          image: AssetImage('assets/textures/brushed_metal.png'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Color(0x2EFFFFFF),
-            BlendMode.softLight,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return FractionalTranslation(
+          translation: Offset(_nudge.value, 0),
+          child: child,
+        );
+      },
+      child: Container(
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFE5E5E5),
+              Color(0xFFBEBEBE),
+              Color(0xFFEDEDED),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x40000000),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _IndicatorPainter(
-                needlePosition.clamp(0.0, 1.0),
-                leftReserved: 86,
-                rightReserved: 0,
-              ),
+          image: const DecorationImage(
+            image: AssetImage('assets/textures/brushed_metal.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Color(0x2EFFFFFF),
+              BlendMode.softLight,
             ),
           ),
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: SizedBox(
-              width: 86,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 14),
-                  child: Text(
-                    label.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: Color(0xA6000000),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 18,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInOutCubic,
+                tween: Tween<double>(end: widget.needlePosition.clamp(0.0, 1.0)),
+                builder: (context, value, _) {
+                  return CustomPaint(
+                    painter: _IndicatorPainter(
+                      value,
+                      leftReserved: widget.leftReserved,
+                      rightReserved: 0,
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: SizedBox(
+                width: widget.leftReserved,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: widget.labelPadding),
+                    child: Text(
+                      widget.label.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: Color(0xA6000000),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

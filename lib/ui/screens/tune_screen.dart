@@ -65,10 +65,11 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
         Text('TUNE', style: theme.textTheme.headlineMedium),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: const Color(0x1AFFFFFF),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(24),
           ),
           child: const Text(
             '사연을 입력하면 잠시 송수신 화면으로 전환됩니다.',
@@ -91,89 +92,114 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
   Widget _buildStage(ThemeData theme) {
     switch (_stage) {
       case _TuneStage.sending:
-        return Center(
+        return _StageCard(
           key: const ValueKey('sending'),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '주파수를 맞추는 중…',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ),
+        );
+      case _TuneStage.confirm:
+        return _StageCard(
+          key: const ValueKey('confirm'),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(
-                width: 44,
-                height: 44,
-                child: CircularProgressIndicator(strokeWidth: 3),
-              ),
-              const SizedBox(height: 16),
               Text(
-                '주파수를 맞추는 중…',
+                '송신 완료. 게시판에 등록할까요?',
                 style: theme.textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _publish(false),
+                      child: const Text('나중에'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _publish(true),
+                      child: const Text('등록하기'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         );
-      case _TuneStage.confirm:
-        return Column(
-          key: const ValueKey('confirm'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '송신 완료. 게시판에 등록할까요?',
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 18),
-            Row(
+      case _TuneStage.idle:
+      default:
+        return _StageCard(
+          key: const ValueKey('idle'),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _publish(false),
-                    child: const Text('나중에'),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: '사연 제목 (선택)',
                   ),
+                  textInputAction: TextInputAction.next,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _storyController,
+                  decoration: const InputDecoration(
+                    labelText: '사연을 들려주세요',
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 6,
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  height: 52,
                   child: ElevatedButton(
-                    onPressed: () => _publish(true),
-                    child: const Text('등록하기'),
+                    onPressed: _send,
+                    child: const Text('보내기'),
                   ),
                 ),
               ],
             ),
-          ],
-        );
-      case _TuneStage.idle:
-      default:
-        return SingleChildScrollView(
-          key: const ValueKey('idle'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: '사연 제목 (선택)',
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _storyController,
-                decoration: const InputDecoration(
-                  labelText: '사연을 들려주세요',
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 6,
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _send,
-                  child: const Text('보내기'),
-                ),
-              ),
-            ],
           ),
         );
     }
+  }
+}
+
+class _StageCard extends StatelessWidget {
+  const _StageCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x1AFFFFFF),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: child,
+    );
   }
 }

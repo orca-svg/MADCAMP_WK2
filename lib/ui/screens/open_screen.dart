@@ -24,45 +24,47 @@ class OpenScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
             itemCount: posts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final post = posts[index];
-              return Material(
-                color: const Color(0x1AFFFFFF),
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.go('/open/${post.id}'),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            _TagChip(text: post.tag),
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatTime(post.createdAt),
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          post.title,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          post.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
+              return Container(
+                margin: const EdgeInsets.all(10),
+                child: Material(
+                  color: const Color(0x1AFFFFFF),
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () => context.go('/open/${post.id}'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              _TagChip(text: post.tag),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatTime(post.createdAt),
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            post.title,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            post.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

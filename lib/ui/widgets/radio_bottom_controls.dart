@@ -87,7 +87,6 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
           onTap: enabled ? widget.onPressed : null,
           onTapDown: enabled
               ? (_) {
-                  HapticFeedback.selectionClick();
                   _setPressed(true);
                 }
               : null,

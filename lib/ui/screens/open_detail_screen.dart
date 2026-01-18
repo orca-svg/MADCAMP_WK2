@@ -40,10 +40,18 @@ class OpenDetailScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: SingleChildScrollView(
-            child: Text(
-              post.body,
-              style: theme.textTheme.bodyLarge,
+          child: Container(
+            margin: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0x1AFFFFFF),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                post.body,
+                style: theme.textTheme.bodyLarge,
+              ),
             ),
           ),
         ),
