@@ -39,7 +39,6 @@ export class StoriesService {
     `;
 
     return {
-      message: '사연이 송신되었습니다.',
       myStory,
       similarStories,
     };
