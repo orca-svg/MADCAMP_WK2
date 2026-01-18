@@ -8,8 +8,10 @@ import 'providers/power_provider.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/login_screen.dart';
 import 'ui/screens/my_screen.dart';
-import 'ui/screens/placeholder_screen.dart';
+import 'ui/screens/open_detail_screen.dart';
+import 'ui/screens/open_screen.dart';
 import 'ui/screens/signup_screen.dart';
+import 'ui/screens/tune_screen.dart';
 import 'ui/shell/radio_app_shell.dart';
 
 class _TabConfig {
@@ -21,7 +23,7 @@ class _TabConfig {
 
 const _tabs = [
   _TabConfig('HOME', '/home'),
-  _TabConfig('FREQUENCY', '/freq'),
+  _TabConfig('TUNE', '/tune'),
   _TabConfig('OPEN', '/open'),
   _TabConfig('MY', '/my'),
 ];
@@ -59,8 +61,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                 indicatorLabel: 'ACCESS',
                 tabIndex: _authIndexForLocation(state.uri.path),
                 showControls: false,
-                onPrev: () => context.go(_authRoutes.last),
-                onNext: () => context.go(_authRoutes.last),
                 onPower: () {
                   final notifier = ref.read(powerStateProvider.notifier);
                   notifier.state = !notifier.state;
@@ -80,8 +80,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                 indicatorLabel: 'ACCESS',
                 tabIndex: _authIndexForLocation(state.uri.path),
                 showControls: false,
-                onPrev: () => context.go(_authRoutes.first),
-                onNext: () => context.go(_authRoutes.first),
                 onPower: () {
                   final notifier = ref.read(powerStateProvider.notifier);
                   notifier.state = !notifier.state;
@@ -104,19 +102,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 tabIndex: tabIndex,
                 powerOn: powerOn,
                 onPrev: () {
-                  if (location.startsWith('/home')) {
-                    context.go('/login');
-                    return;
-                  }
                   final nextIndex =
                       (tabIndex - 1 + _tabs.length) % _tabs.length;
                   context.go(_tabs[nextIndex].path);
                 },
                 onNext: () {
-                  if (location.startsWith('/home')) {
-                    context.go('/signup');
-                    return;
-                  }
                   final nextIndex = (tabIndex + 1) % _tabs.length;
                   context.go(_tabs[nextIndex].path);
                 },
@@ -142,18 +132,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const HomeScreen(),
           ),
           GoRoute(
-            path: '/freq',
-            builder: (context, state) => const PlaceholderScreen(
-              title: 'Frequency Lab',
-              subtitle: 'Experiment with the dial and watch the needle shift.',
-            ),
+            path: '/tune',
+            builder: (context, state) => const TuneScreen(),
           ),
           GoRoute(
             path: '/open',
-            builder: (context, state) => const PlaceholderScreen(
-              title: 'Open Air',
-              subtitle: 'A quiet space for future broadcasts.',
-            ),
+            builder: (context, state) => const OpenScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id'] ?? '';
+                  return OpenDetailScreen(postId: id);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/my',

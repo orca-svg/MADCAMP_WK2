@@ -8,6 +8,7 @@ const _usernameKey = 'auth_username';
 const _passwordKey = 'auth_password';
 const _nicknameKey = 'auth_nickname';
 const _signedInKey = 'auth_signed_in';
+const _tokenKey = 'auth_token';
 const _defaultUsername = 'radio_test';
 const _defaultPassword = 'radio1234';
 const _defaultNickname = 'Guest Listener';
@@ -31,12 +32,14 @@ class AuthState {
   final bool isSignedIn;
   final String? username;
   final String? nickname;
+  final String? token;
   final bool hasAccount;
 
   const AuthState({
     required this.isSignedIn,
     required this.username,
     required this.nickname,
+    required this.token,
     required this.hasAccount,
   });
 
@@ -44,12 +47,14 @@ class AuthState {
     bool? isSignedIn,
     String? username,
     String? nickname,
+    String? token,
     bool? hasAccount,
   }) {
     return AuthState(
       isSignedIn: isSignedIn ?? this.isSignedIn,
       username: username ?? this.username,
       nickname: nickname ?? this.nickname,
+      token: token ?? this.token,
       hasAccount: hasAccount ?? this.hasAccount,
     );
   }
@@ -65,12 +70,14 @@ class AuthController extends StateNotifier<AuthState> {
   static AuthState _load(SharedPreferences prefs) {
     final username = prefs.getString(_usernameKey);
     final nickname = prefs.getString(_nicknameKey);
+    final token = prefs.getString(_tokenKey);
     final signedIn = prefs.getBool(_signedInKey) ?? false;
     final hasAccount = username != null && username.isNotEmpty;
     return AuthState(
       isSignedIn: signedIn && hasAccount,
       username: username,
       nickname: nickname,
+      token: token,
       hasAccount: hasAccount,
     );
   }
@@ -89,10 +96,12 @@ class AuthController extends StateNotifier<AuthState> {
       await _prefs.setString(_usernameKey, username);
       await _prefs.setString(_passwordKey, password);
       await _prefs.setBool(_signedInKey, true);
+      await _prefs.setString(_tokenKey, 'mock_token_$username');
       state = state.copyWith(
         isSignedIn: true,
         username: username,
         nickname: username,
+        token: 'mock_token_$username',
         hasAccount: true,
       );
       return null;
@@ -104,10 +113,13 @@ class AuthController extends StateNotifier<AuthState> {
 
     debugPrint('Login success.');
     await _prefs.setBool(_signedInKey, true);
+    final token = _prefs.getString(_tokenKey) ?? 'mock_token_$storedUsername';
+    await _prefs.setString(_tokenKey, token);
     state = state.copyWith(
       isSignedIn: true,
       username: storedUsername,
       nickname: _prefs.getString(_nicknameKey),
+      token: token,
       hasAccount: true,
     );
     return null;
@@ -126,11 +138,14 @@ class AuthController extends StateNotifier<AuthState> {
     await _prefs.setString(_usernameKey, username);
     await _prefs.setString(_passwordKey, password);
     await _prefs.setBool(_signedInKey, true);
+    final token = 'mock_token_$username';
+    await _prefs.setString(_tokenKey, token);
 
     state = AuthState(
       isSignedIn: true,
       username: username,
       nickname: nickname,
+      token: token,
       hasAccount: true,
     );
     return null;
@@ -148,6 +163,7 @@ class AuthController extends StateNotifier<AuthState> {
       isSignedIn: false,
       username: _prefs.getString(_usernameKey) ?? _defaultUsername,
       nickname: _prefs.getString(_nicknameKey) ?? _defaultNickname,
+      token: _prefs.getString(_tokenKey),
       hasAccount: true,
     );
   }

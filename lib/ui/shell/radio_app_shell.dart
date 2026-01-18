@@ -124,12 +124,11 @@ class RadioFrameBackground extends StatelessWidget {
         ),
         IgnorePointer(
           ignoring: true,
-          child: Opacity(
-            opacity: 0.06,
-            child: Image.asset(
-              'assets/textures/noise.png',
-              fit: BoxFit.cover,
-            ),
+          child: Image.asset(
+            'assets/textures/noise.png',
+            fit: BoxFit.cover,
+            color: const Color(0x0FFFFFFF),
+            colorBlendMode: BlendMode.modulate,
           ),
         ),
       ],

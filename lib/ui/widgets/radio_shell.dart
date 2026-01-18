@@ -119,21 +119,19 @@ class _BackgroundLayer extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.2,
-              child: Image.asset(
-                'assets/textures/noise.png',
-                fit: BoxFit.cover,
-              ),
+            child: Image.asset(
+              'assets/textures/noise.png',
+              fit: BoxFit.cover,
+              color: const Color(0x33FFFFFF),
+              colorBlendMode: BlendMode.modulate,
             ),
           ),
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.1,
-              child: Image.asset(
-                'assets/textures/dust.png',
-                fit: BoxFit.cover,
-              ),
+            child: Image.asset(
+              'assets/textures/dust.png',
+              fit: BoxFit.cover,
+              color: const Color(0x1AFFFFFF),
+              colorBlendMode: BlendMode.modulate,
             ),
           ),
         ],

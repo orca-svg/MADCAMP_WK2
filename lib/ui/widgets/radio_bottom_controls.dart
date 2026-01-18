@@ -72,75 +72,80 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    final scale = _pressed ? 0.94 : 1.0;
-    final blur = _pressed ? 6.0 : 16.0;
+    final scale = _pressed ? 0.96 : 1.0;
+    final blur = _pressed ? 6.0 : 14.0;
+    final iconColor = enabled
+        ? const Color(0xFF3B3B3B)
+        : const Color(0x663B3B3B);
 
     return Tooltip(
       message: widget.tooltip,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.4,
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkResponse(
-            onTap: enabled ? widget.onPressed : null,
-            onTapDown: enabled
-                ? (_) {
-                    HapticFeedback.lightImpact();
-                    _setPressed(true);
-                  }
-                : null,
-            onTapCancel: enabled ? () => _setPressed(false) : null,
-            onTapUp: enabled ? (_) => _setPressed(false) : null,
-            highlightColor: Colors.white.withOpacity(0.06),
-            splashFactory: InkSparkle.splashFactory,
-            containedInkWell: true,
-            customBorder: const CircleBorder(),
-            child: AnimatedScale(
-              scale: scale,
-              duration: Duration(milliseconds: _pressed ? 90 : 140),
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: _pressed ? 90 : 140),
-                width: widget.size,
-                height: widget.size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFD7D7D7), Color(0xFFBEBEBE)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  image: const DecorationImage(
-                    image: AssetImage('assets/textures/brushed_metal.png'),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Color(0x2EFFFFFF),
-                      BlendMode.softLight,
-                    ),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0x66000000),
-                      blurRadius: blur,
-                      offset: const Offset(0, 6),
-                    ),
-                    const BoxShadow(
-                      color: Color(0x22FFFFFF),
-                      blurRadius: 6,
-                      offset: Offset(0, -2),
-                    ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkResponse(
+          onTap: enabled ? widget.onPressed : null,
+          onTapDown: enabled
+              ? (_) {
+                  HapticFeedback.selectionClick();
+                  _setPressed(true);
+                }
+              : null,
+          onTapCancel: enabled ? () => _setPressed(false) : null,
+          onTapUp: enabled ? (_) => _setPressed(false) : null,
+          highlightColor: Colors.white.withOpacity(0.06),
+          splashFactory: InkSparkle.splashFactory,
+          containedInkWell: true,
+          customBorder: const CircleBorder(),
+          child: AnimatedScale(
+            scale: scale,
+            duration: const Duration(milliseconds: 120),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFEFE3CF),
+                    Color(0xFFD8C7A6),
+                    Color(0xFFB79E7A),
                   ],
-                  border: Border.all(
-                    color: const Color(0x66FFFFFF),
-                    width: 1.2,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                image: const DecorationImage(
+                  image: AssetImage('assets/textures/brushed_metal.png'),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Color(0x33D8C7A6),
+                    BlendMode.softLight,
                   ),
                 ),
-                child: Center(
-                  child: Icon(
-                    widget.icon,
-                    color: const Color(0xFF2B2B2B),
-                    size: widget.size * 0.48,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0x66000000),
+                    blurRadius: blur,
+                    offset: const Offset(0, 6),
                   ),
+                  const BoxShadow(
+                    color: Color(0x22FFFFFF),
+                    blurRadius: 6,
+                    offset: Offset(0, -2),
+                  ),
+                ],
+                border: Border.all(
+                  color:
+                      enabled ? const Color(0x66FFFFFF) : const Color(0x33FFFFFF),
+                  width: 1.2,
+                ),
+              ),
+              child: Center(
+                child: Icon(
+                  widget.icon,
+                  color: iconColor,
+                  size: widget.size * 0.48,
                 ),
               ),
             ),
@@ -215,33 +220,36 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
     final iconColor =
-        widget.isActive ? const Color(0xFFE53935) : const Color(0xFF2B2B2B);
+        widget.isActive ? const Color(0xFFE53935) : const Color(0xFF3B3B3B);
+    final inactiveColor =
+        enabled ? iconColor : iconColor.withOpacity(0.5);
 
     return Tooltip(
       message: widget.tooltip,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.4,
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkResponse(
-            onTap: enabled ? widget.onPressed : null,
-            onTapDown: enabled
-                ? (_) {
-                    HapticFeedback.mediumImpact();
-                  }
-                : null,
-            highlightColor: Colors.white.withOpacity(0.06),
-            splashFactory: InkSparkle.splashFactory,
-            containedInkWell: true,
-            customBorder: const CircleBorder(),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkResponse(
+          onTap: enabled ? widget.onPressed : null,
+          onTapDown: enabled
+              ? (_) {
+                  HapticFeedback.mediumImpact();
+                }
+              : null,
+          highlightColor: Colors.white.withOpacity(0.06),
+          splashFactory: InkSparkle.splashFactory,
+          containedInkWell: true,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
-                  width: widget.size + (widget.isActive ? 18 : 0),
-                  height: widget.size + (widget.isActive ? 18 : 0),
+                  width: widget.size,
+                  height: widget.size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     boxShadow: widget.isActive
@@ -263,7 +271,11 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFD7D7D7), Color(0xFFBEBEBE)],
+                        colors: [
+                          Color(0xFFEFE3CF),
+                          Color(0xFFD8C7A6),
+                          Color(0xFFB79E7A),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -271,7 +283,7 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                         image: AssetImage('assets/textures/brushed_metal.png'),
                         fit: BoxFit.cover,
                         colorFilter: ColorFilter.mode(
-                          Color(0x2EFFFFFF),
+                          Color(0x33D8C7A6),
                           BlendMode.softLight,
                         ),
                       ),
@@ -299,9 +311,9 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                             child: IgnorePointer(
                               ignoring: true,
                               child: Container(
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0x33E53935),
+                                  color: Color(0x33E53935),
                                 ),
                               ),
                             ),
@@ -309,7 +321,7 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                         Center(
                           child: Icon(
                             widget.icon,
-                            color: iconColor,
+                            color: inactiveColor,
                             size: widget.size * 0.48,
                           ),
                         ),

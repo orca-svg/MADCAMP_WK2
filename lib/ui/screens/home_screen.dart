@@ -20,6 +20,7 @@ class HomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SizedBox(height: 8),
         Text(
           'Today\'s comfort message',
           style: theme.textTheme.headlineMedium?.copyWith(

@@ -81,6 +81,11 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   # fonts:
+  flutter:
+    fonts:
+      - family: ChosunCentennial
+        fonts:
+          - asset: assets/fonts/ChosunCentennial_otf.otf
   #   - family: Schyler
   #     fonts:
   #       - asset: fonts/Schyler-Regular.ttf
