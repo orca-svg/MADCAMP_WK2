@@ -8,7 +8,7 @@ export class CreateUserDto {
     })
     @IsEmail()
     @IsNotEmpty()
-    email: string;
+    email!: string;
 
     @ApiProperty({
         description: 'User 비밀번호',
@@ -16,7 +16,7 @@ export class CreateUserDto {
     })
     @IsString()
     @IsNotEmpty()
-    password: string;
+    password!: string;
 
     @ApiProperty({
         description: 'User 닉네임',
@@ -24,5 +24,5 @@ export class CreateUserDto {
     })
     @IsString()
     @IsNotEmpty()
-    nickname: string;
+    nickname!: string;
 }

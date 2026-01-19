@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAdviceDto {
     @ApiProperty({
@@ -8,13 +8,13 @@ export class CreateAdviceDto {
     })
     @IsString()
     @IsNotEmpty()
-    content: string;
+    content!: string;
 
-    @ApiProperty({
+    @ApiPropertyOptional({
         description: 'Advice 작성자',
         example: 'author'
     })
     @IsString()
     @IsOptional()
-    author: string;
+    author?: string;
 }

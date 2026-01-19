@@ -5,7 +5,7 @@ export class CreateBookmarkDto {
   @ApiProperty({ description: 'Advice ID', example: '1234' })
   @IsString()
   @IsNotEmpty()
-  adviceId: string;
+  adviceId!: string;
 
   @ApiPropertyOptional({ description: 'User ID', example: '1234' })
   @IsString()

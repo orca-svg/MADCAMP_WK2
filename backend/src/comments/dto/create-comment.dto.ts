@@ -5,12 +5,12 @@ export class CreateCommentDto {
   @ApiProperty({ description: 'Story ID', example: '1234' })
   @IsString()
   @IsNotEmpty()
-  storyId: string;
+  storyId!: string;
 
   @ApiProperty({ description: 'Comment content', example: 'Great story.' })
   @IsString()
   @IsNotEmpty()
-  content: string;
+  content!: string;
 
   @ApiPropertyOptional({ description: 'User ID', example: '1234' })
   @IsString()

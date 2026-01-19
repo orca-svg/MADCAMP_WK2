@@ -9,14 +9,14 @@ export class CreateStoryDto {
     })
     @IsString()
     @IsNotEmpty()
-    title: string;
+    title!: string;
 
     @ApiProperty({
         description: '사연 내용'
     })
     @IsString()
     @IsNotEmpty()
-    content: string;
+    content!: string;
 
     @ApiProperty({
         description: '사연 공개 여부',

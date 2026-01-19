@@ -7,9 +7,20 @@ import { UsersModule } from './users/users.module';
 import { CommentsModule } from './comments/comments.module';
 import { AdviceModule } from './advice/advice.module';
 import { BookmarksModule } from './bookmarks/bookmarks.module';
+import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [PrismaModule, StoriesModule, UsersModule, CommentsModule, AdviceModule, BookmarksModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    PrismaModule, 
+    StoriesModule, 
+    UsersModule, 
+    CommentsModule, 
+    AdviceModule, 
+    BookmarksModule
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
