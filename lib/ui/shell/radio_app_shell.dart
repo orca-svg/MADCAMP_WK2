@@ -87,7 +87,7 @@ class _RadioAppShellState extends State<RadioAppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -250,16 +250,11 @@ class RadioFrameBackground extends StatelessWidget {
         Image.asset(
           'assets/textures/wood_grain.png',
           fit: BoxFit.cover,
-          color: RadioTone.woodOverlayDark,
-          colorBlendMode: BlendMode.multiply,
         ),
-        IgnorePointer(
+        const IgnorePointer(
           ignoring: true,
-          child: Image.asset(
-            'assets/textures/noise.png',
-            fit: BoxFit.cover,
-            color: const Color(0x0FFFFFFF),
-            colorBlendMode: BlendMode.modulate,
+          child: ColoredBox(
+            color: Color(0x14000000),
           ),
         ),
       ],
@@ -369,25 +364,37 @@ class _ShellControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _ControlButton(
-          icon: Icons.chevron_left,
-          size: RadioTone.controlSize,
-          onTap: onPrev,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _ControlButton(
+              icon: Icons.chevron_left,
+              size: RadioTone.controlSize,
+              onTap: onPrev,
+            ),
+          ),
         ),
-        const SizedBox(width: RadioTone.controlGap),
-        _ControlButton(
-          icon: Icons.power_settings_new,
-          size: RadioTone.powerSize,
-          onTap: onPower,
-          isActive: powerOn,
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: _ControlButton(
+              icon: Icons.power_settings_new,
+              size: RadioTone.powerSize,
+              onTap: onPower,
+              isActive: powerOn,
+            ),
+          ),
         ),
-        const SizedBox(width: RadioTone.controlGap),
-        _ControlButton(
-          icon: Icons.chevron_right,
-          size: RadioTone.controlSize,
-          onTap: onNext,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _ControlButton(
+              icon: Icons.chevron_right,
+              size: RadioTone.controlSize,
+              onTap: onNext,
+            ),
+          ),
         ),
       ],
     );

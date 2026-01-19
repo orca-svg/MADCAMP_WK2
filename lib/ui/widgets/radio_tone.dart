@@ -29,5 +29,5 @@ class RadioTone {
       EdgeInsets.symmetric(horizontal: 14, vertical: 10);
   static const double controlSize = 52.0;
   static const double powerSize = 60.0;
-  static const double controlGap = 18.0;
+  static const double controlGap = 24.0;
 }

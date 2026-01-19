@@ -27,6 +27,7 @@ class RadioShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: LayoutBuilder(
@@ -183,24 +184,36 @@ class _ShellControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _ControlButton(
-          icon: Icons.chevron_left,
-          size: RadioTone.controlSize,
-          onTap: onPrev,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _ControlButton(
+              icon: Icons.chevron_left,
+              size: RadioTone.controlSize,
+              onTap: onPrev,
+            ),
+          ),
         ),
-        const SizedBox(width: RadioTone.controlGap),
-        _ControlButton(
-          icon: Icons.power_settings_new,
-          size: RadioTone.powerSize,
-          onTap: onPower,
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: _ControlButton(
+              icon: Icons.power_settings_new,
+              size: RadioTone.powerSize,
+              onTap: onPower,
+            ),
+          ),
         ),
-        const SizedBox(width: RadioTone.controlGap),
-        _ControlButton(
-          icon: Icons.chevron_right,
-          size: RadioTone.controlSize,
-          onTap: onNext,
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _ControlButton(
+              icon: Icons.chevron_right,
+              size: RadioTone.controlSize,
+              onTap: onNext,
+            ),
+          ),
         ),
       ],
     );
@@ -263,34 +276,20 @@ class _ControlButton extends StatelessWidget {
 class _BackgroundLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          colors: [RadioTone.woodOverlayDark, Color(0xFF120D0A)],
-          radius: 1.1,
-          center: Alignment(0.0, -0.2),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/textures/wood_grain.png',
+          fit: BoxFit.cover,
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/textures/noise.png',
-              fit: BoxFit.cover,
-              color: const Color(0x33FFFFFF),
-              colorBlendMode: BlendMode.modulate,
-            ),
+        const IgnorePointer(
+          ignoring: true,
+          child: ColoredBox(
+            color: Color(0x14000000),
           ),
-          Positioned.fill(
-            child: Image.asset(
-              'assets/textures/dust.png',
-              fit: BoxFit.cover,
-              color: const Color(0x1AFFFFFF),
-              colorBlendMode: BlendMode.modulate,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
