@@ -18,7 +18,7 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
     const { user, sessionToken, expiresAt } = await this.authService.googleLogin(req.user);
     const cookieName = this.configService.get<string>('SESSION_COOKIE_NAME') ?? 'session';
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
