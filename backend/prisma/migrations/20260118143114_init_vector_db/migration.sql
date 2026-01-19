@@ -40,6 +40,7 @@ CREATE TABLE "Bookmark" (
 -- CreateTable
 CREATE TABLE "Story" (
     "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "isPublic" BOOLEAN NOT NULL DEFAULT true,
     "emotion" "Emotion",
