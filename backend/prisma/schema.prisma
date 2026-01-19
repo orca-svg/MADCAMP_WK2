@@ -18,7 +18,10 @@ datasource db {
 model User {
   id                  String    @id @default(uuid()) // Primary Key
   email               String    @unique
-  password            String
+
+  name                String?
+  image               String?
+  
   nickname            String
   frequency           Float     @default(0)
   totalLikesReceived  Int       @default(0)
@@ -28,6 +31,18 @@ model User {
   bookmarks           Bookmark[]
   stories             Story[]
   comments            Comment[]
+  sessions            Session[]
+}
+
+model Session {
+  id            String
+  sessionToken  String    @id
+  userId        String
+  expires       DateTime
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Advice {
