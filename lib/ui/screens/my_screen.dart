@@ -73,6 +73,10 @@ class MyScreen extends ConsumerWidget {
                         fontFamily: _readableBodyFont,
                       ),
                     ),
+                    if (post.tags.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _TagRow(tags: post.tags),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       post.body,
@@ -128,6 +132,53 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(value, style: theme.textTheme.titleLarge),
         ],
+      ),
+    );
+  }
+}
+
+class _TagRow extends StatelessWidget {
+  const _TagRow({required this.tags});
+
+  final List<String> tags;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleTags = tags.take(3).toList();
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final tag in visibleTags) _TagChip(text: tag),
+      ],
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x33171411),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xE6F2EBDD),
+                fontFamily: _readableBodyFont,
+              ),
+        ),
       ),
     );
   }

@@ -73,6 +73,7 @@ flutter:
     - assets/audio/power_on.wav
     - assets/audio/power_off.wav
     - assets/audio/tune_tick.wav
+    - assets/images/frequency_theater_bg.png
     - assets/icon/app_icon.png
 
   fonts:

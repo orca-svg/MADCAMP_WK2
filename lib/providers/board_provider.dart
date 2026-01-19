@@ -37,11 +37,13 @@ class BoardController extends StateNotifier<BoardState> {
   BoardPost submitStory({
     required String title,
     required String body,
+    required List<String> tags,
     required bool publish,
   }) {
     final post = _repository.submitStory(
       title: title,
       body: body,
+      tags: tags,
       publish: publish,
     );
     state = BoardState(
