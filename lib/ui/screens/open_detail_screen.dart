@@ -2,18 +2,117 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/board_repository.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/board_provider.dart';
 
 const _readableBodyFont = 'ChosunCentennial';
 
-class OpenDetailScreen extends ConsumerWidget {
+class OpenDetailScreen extends ConsumerStatefulWidget {
   const OpenDetailScreen({super.key, required this.postId});
 
   final String postId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final post = ref.watch(boardPostProvider(postId));
+  ConsumerState<OpenDetailScreen> createState() => _OpenDetailScreenState();
+}
+
+class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
+  final TextEditingController _commentController = TextEditingController();
+  final List<_CommentState> _comments = [];
+  String? _acceptedCommentId;
+  bool _postLiked = false;
+  int _postLikeCount = 0;
+  String? _initializedPostId;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  void _ensureInitialized(BoardPost post, String currentUserId) {
+    if (_initializedPostId == post.id) return;
+    _initializedPostId = post.id;
+    _postLikeCount = post.empathyCount;
+    _postLiked =
+        currentUserId.isNotEmpty && post.likedUserIds.contains(currentUserId);
+    _acceptedCommentId = post.acceptedCommentId;
+    _comments
+      ..clear()
+      ..addAll(_seedComments(currentUserId));
+  }
+
+  List<_CommentState> _seedComments(String currentUserId) {
+    return [
+      _CommentState(
+        id: 'c1',
+        text: '파도처럼 숨 쉬어도 괜찮아요. 오늘은 천천히 가요.',
+        likedUserIds:
+            currentUserId.isNotEmpty ? [currentUserId] : const [],
+        likeCount: currentUserId.isNotEmpty ? 1 : 0,
+        isLiked: currentUserId.isNotEmpty,
+      ),
+      _CommentState(
+        id: 'c2',
+        text: '응원하고 있어요. 지금도 충분히 잘하고 있어요.',
+        likedUserIds: const [],
+        likeCount: 0,
+        isLiked: false,
+      ),
+    ];
+  }
+
+  void _togglePostLike() {
+    setState(() {
+      _postLiked = !_postLiked;
+      if (_postLiked) {
+        _postLikeCount += 1;
+      } else if (_postLikeCount > 0) {
+        _postLikeCount -= 1;
+      }
+    });
+  }
+
+  void _toggleCommentLike(_CommentState comment) {
+    setState(() {
+      comment.isLiked = !comment.isLiked;
+      if (comment.isLiked) {
+        comment.likeCount += 1;
+      } else if (comment.likeCount > 0) {
+        comment.likeCount -= 1;
+      }
+    });
+  }
+
+  void _toggleAcceptComment(_CommentState comment) {
+    setState(() {
+      if (_acceptedCommentId != comment.id) {
+        _acceptedCommentId = comment.id;
+      }
+    });
+  }
+
+  void _submitComment() {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _comments.insert(
+        0,
+        _CommentState(
+          id: 'c_${DateTime.now().millisecondsSinceEpoch}',
+          text: text,
+        ),
+      );
+    });
+    _commentController.clear();
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = ref.watch(boardPostProvider(widget.postId));
+    final authState = ref.watch(authProvider);
     final theme = Theme.of(context);
 
     if (post == null) {
@@ -25,81 +124,127 @@ class OpenDetailScreen extends ConsumerWidget {
       );
     }
 
+    final currentUserId = authState.username ?? '';
+    _ensureInitialized(post, currentUserId);
+    final isPostOwner = currentUserId.isNotEmpty &&
+        post.authorId != null &&
+        post.authorId == currentUserId;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 10),
-        Text('열린 주파수', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 10),
-        Text(
-          post.title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontFamily: _readableBodyFont,
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (post.tags.isNotEmpty) ...[
-          _TagRow(tags: post.tags),
-          const SizedBox(height: 8),
-        ],
-        Text(
-          _formatTime(post.createdAt),
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontFamily: _readableBodyFont,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(10),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0x1AFFFFFF),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: SingleChildScrollView(
-              child: Text(
-                post.body,
-                style: theme.textTheme.bodyLarge?.copyWith(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => context.go('/open'),
+                  customBorder: const StadiumBorder(),
+                  child: Ink(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0x24171411),
+                      borderRadius: BorderRadius.circular(14),
+                      border:
+                          Border.all(color: const Color(0x2ED7CCB9), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left,
+                          size: 18,
+                          color: const Color(0xFFD7CCB9).withOpacity(0.85),
+                        ),
+                        Text(
+                          '목록으로',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFD7CCB9).withOpacity(0.90),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                post.title,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontFamily: _readableBodyFont,
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+              if (post.tags.isNotEmpty) ...[
+                _TagRow(tags: post.tags),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                _formatTime(post.createdAt),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: _readableBodyFont,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () => context.go('/open'),
-          icon: const Icon(Icons.chevron_left),
-          label: const Text('목록으로'),
-        ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('공감이 전송됐어요.')),
-                  );
-                },
-                icon: const Icon(Icons.favorite_border),
-                label: const Text('공감'),
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final ordered = _orderedComments();
+                    final acceptEnabled =
+                        isPostOwner && _acceptedCommentId == null;
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      itemCount: ordered.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return _PostDetailCard(
+                            body: post.body,
+                            isLiked: _postLiked,
+                            likeCount: _postLikeCount,
+                            onToggleLike: _togglePostLike,
+                          );
+                        }
+                        final comment = ordered[index - 1];
+                        final isAccepted =
+                            comment.id == _acceptedCommentId;
+                        return _CommentCard(
+                          comment: comment,
+                          isAccepted: isAccepted,
+                          isPostOwner: isPostOwner,
+                          onToggleLike: () => _toggleCommentLike(comment),
+                          onToggleAccept: acceptEnabled
+                              ? () => _toggleAcceptComment(comment)
+                              : null,
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('채택 요청을 보냈어요.')),
-                  );
-                },
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('채택'),
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: _CommentInputBar(
+                  controller: _commentController,
+                  onSend: _submitComment,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -112,6 +257,284 @@ class OpenDetailScreen extends ConsumerWidget {
     final minute = time.minute.toString().padLeft(2, '0');
     return '$month/$day $hour:$minute';
   }
+
+  List<_CommentState> _orderedComments() {
+    if (_acceptedCommentId == null) return List<_CommentState>.from(_comments);
+    final ordered = List<_CommentState>.from(_comments);
+    final index =
+        ordered.indexWhere((comment) => comment.id == _acceptedCommentId);
+    if (index <= 0) return ordered;
+    final accepted = ordered.removeAt(index);
+    ordered.insert(0, accepted);
+    return ordered;
+  }
+}
+
+class _PostDetailCard extends StatelessWidget {
+  const _PostDetailCard({
+    required this.body,
+    required this.isLiked,
+    required this.likeCount,
+    required this.onToggleLike,
+  });
+
+  final String body;
+  final bool isLiked;
+  final int likeCount;
+  final VoidCallback onToggleLike;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = isLiked
+        ? const Color(0xFFE25B5B)
+        : const Color(0xFFD7CCB9).withOpacity(0.80);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x1AFFFFFF),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            body,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontFamily: _readableBodyFont,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    onPressed: onToggleLike,
+                    icon: Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: iconColor,
+                    ),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 22,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  likeCount.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: const Color(0xFFD7CCB9).withOpacity(0.75),
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentCard extends StatelessWidget {
+  const _CommentCard({
+    required this.comment,
+    required this.isAccepted,
+    required this.isPostOwner,
+    required this.onToggleLike,
+    required this.onToggleAccept,
+  });
+
+  final _CommentState comment;
+  final bool isAccepted;
+  final bool isPostOwner;
+  final VoidCallback onToggleLike;
+  final VoidCallback? onToggleAccept;
+
+  @override
+  Widget build(BuildContext context) {
+    final likeIcon =
+        comment.isLiked ? Icons.favorite : Icons.favorite_border;
+    final likeColor = comment.isLiked
+        ? const Color(0xFFE25B5B)
+        : const Color(0xFFD7CCB9).withOpacity(0.80);
+    final acceptIcon =
+        isAccepted ? Icons.verified : Icons.verified_outlined;
+    final acceptColor = isAccepted
+        ? const Color(0xFFF2EBDD).withOpacity(0.95)
+        : const Color(0xFFD7CCB9).withOpacity(0.70);
+
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: const Color(0x1A171411),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0x1FD7CCB9), width: 1),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      comment.text,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontFamily: _readableBodyFont,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+              if (isPostOwner) ...[
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    onPressed: onToggleLike,
+                    icon: Icon(likeIcon, size: 18, color: likeColor),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 22,
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    onPressed: onToggleAccept,
+                    icon: Icon(acceptIcon, size: 18, color: acceptColor),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 22,
+                  ),
+                ),
+              ] else
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    onPressed: onToggleLike,
+                    icon: Icon(likeIcon, size: 18, color: likeColor),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 22,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (isAccepted)
+          Positioned(
+            left: 16,
+            bottom: 6,
+            child: Container(
+              height: 20,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: const Color(0x24171411),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.verified,
+                    size: 14,
+                    color: const Color(0xFFF2EBDD).withOpacity(0.92),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    '채택됨',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xEBF2EBDD),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _CommentInputBar extends StatelessWidget {
+  const _CommentInputBar({
+    required this.controller,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0x24171411),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+              ),
+              child: TextField(
+                controller: controller,
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  hintText: '댓글을 남겨보세요',
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xA6D7CCB9),
+                  ),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: IconButton(
+              onPressed: onSend,
+              icon: Icon(
+                Icons.send,
+                size: 18,
+                color: const Color(0xFFD7CCB9).withOpacity(0.85),
+              ),
+              padding: EdgeInsets.zero,
+              splashRadius: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TagRow extends StatelessWidget {
@@ -121,13 +544,16 @@ class _TagRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleTags = tags.take(3).toList();
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final tag in visibleTags) _TagChip(text: tag),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int i = 0; i < tags.length; i++) ...[
+            _TagChip(text: tags[i]),
+            if (i != tags.length - 1) const SizedBox(width: 6),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -139,24 +565,44 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: const Color(0x33171411),
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Center(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 110),
+      child: Container(
+        height: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0x24171411),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+        ),
         child: Text(
           text,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xE6F2EBDD),
-                fontFamily: _readableBodyFont,
-              ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFFD7CCB9).withOpacity(0.92),
+            fontFamily: _readableBodyFont,
+          ),
         ),
       ),
     );
   }
+}
+
+class _CommentState {
+  _CommentState({
+    required this.id,
+    required this.text,
+    this.likedUserIds = const [],
+    this.isLiked = false,
+    this.likeCount = 0,
+  });
+
+  final String id;
+  final String text;
+  final List<String> likedUserIds;
+  bool isLiked;
+  int likeCount;
 }

@@ -103,10 +103,8 @@ class _PowerOnContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStamp = messageState.lastSeenDate;
-    final showBadge = messageState.hasSeenTodayMessage && dateStamp != null;
-    final formattedDate =
-        dateStamp == null ? '' : _formatDateDisplay(dateStamp);
+    final showSeenInfo =
+        messageState.isRepeat && messageState.firstCheckTime != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -119,24 +117,34 @@ class _PowerOnContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        if (showBadge) ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: _DateBadge(
-              dateText: formattedDate,
-              showSeen: messageState.isRepeat,
+        Expanded(
+          child: Center(
+            child: Text(
+              messageState.message ?? '',
+              textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                height: 1.25,
+                color: RadioTone.textPrimary.withOpacity(0.92),
+                fontFamily: _readableBodyFont,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-        Text(
-          messageState.message ?? '',
-          style: theme.textTheme.titleLarge?.copyWith(
-            height: 1.38,
-            color: RadioTone.textPrimary.withOpacity(0.92),
-            fontFamily: _readableBodyFont,
-          ),
         ),
+        if (showSeenInfo) ...[
+          const SizedBox(height: 10),
+          Text(
+            '${_formatTime(messageState.firstCheckTime!)}에 이미 확인한 문구에요.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFD7CCB9).withOpacity(0.70),
+            ),
+          ),
+        ],
         if (messageState.hasTuned) ...[
           const SizedBox(height: 10),
           Row(
@@ -154,57 +162,10 @@ class _PowerOnContent extends StatelessWidget {
   }
 }
 
-class _DateBadge extends StatelessWidget {
-  const _DateBadge({
-    required this.dateText,
-    required this.showSeen,
-  });
-
-  final String dateText;
-  final bool showSeen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0x33171411),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            dateText,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xEBF2EBDD),
-            ),
-          ),
-          if (showSeen) ...[
-            const SizedBox(width: 8),
-            const Text(
-              '이미 확인한 문구에요.',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xD9D7CCB9),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-String _formatDateDisplay(String date) {
-  final parts = date.split('-');
-  if (parts.length != 3) return date;
-  return '${parts[0]}.${parts[1]}.${parts[2]}';
+String _formatTime(DateTime time) {
+  final hour = time.hour.toString().padLeft(2, '0');
+  final minute = time.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }
 
 class _BookmarkButton extends StatefulWidget {

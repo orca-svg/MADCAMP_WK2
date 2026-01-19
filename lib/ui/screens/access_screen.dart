@@ -167,7 +167,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                '다시 만나서 반가워요',
+                                '다시 만나서 반가워요.',
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 8),
@@ -254,7 +254,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                '당신의 라디오를 만들어 보세요',
+                                '당신의 라디오를 \n만들어 보세요',
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 8),
@@ -338,7 +338,8 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                         );
                                       },
                                       title: const Text(
-                                        '오늘의 위로를 수신하는 것에 동의합니다.',
+                                        '사연을 송신하고 다른 사람의 사연과 위로를 수신하는 것에 동의합니다.',
+                                        style: TextStyle(fontSize: 14),                                      
                                       ),
                                       controlAffinity:
                                           ListTileControlAffinity.leading,

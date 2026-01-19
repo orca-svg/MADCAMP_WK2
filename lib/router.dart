@@ -7,6 +7,7 @@ import 'providers/daily_message_provider.dart';
 import 'providers/power_provider.dart';
 import 'ui/screens/access_screen.dart';
 import 'ui/screens/home_screen.dart';
+import 'ui/screens/my_detail_screen.dart';
 import 'ui/screens/my_screen.dart';
 import 'ui/screens/open_detail_screen.dart';
 import 'ui/screens/open_screen.dart';
@@ -172,6 +173,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/my',
             builder: (context, state) => const MyScreen(),
+            routes: [
+              GoRoute(
+                path: 'detail/:id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id'] ?? '';
+                  return MyDetailScreen(postId: id);
+                },
+              ),
+            ],
           ),
         ],
       ),

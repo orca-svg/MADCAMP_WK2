@@ -31,6 +31,10 @@ class PowerController extends StateNotifier<bool> {
     }
   }
 
+  void setPower(bool value) {
+    state = value;
+  }
+
   Future<bool?> toggle() async {
     if (_locked) return null;
     _locked = true;

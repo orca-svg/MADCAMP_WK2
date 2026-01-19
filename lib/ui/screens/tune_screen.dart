@@ -421,22 +421,6 @@ class _ComposePanel extends StatelessWidget {
                     '사연을 입력하면 잠시 송수신 화면으로 전환됩니다.',
                   ),
                 ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: _TagSelectButton(
-                    selectedCount: selectedTags.length,
-                    onTap: onOpenTagSelector,
-                  ),
-                ),
-                if (selectedTags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: _SelectedTags(tags: selectedTags),
-                  ),
-                ],
-                const SizedBox(height: 10),
                 Container(
                   margin: const EdgeInsets.all(10),
                   padding: const EdgeInsets.all(10),
@@ -475,6 +459,15 @@ class _ComposePanel extends StatelessWidget {
                               expands: true,
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          _TagSelectButton(
+                            selectedCount: selectedTags.length,
+                            onTap: onOpenTagSelector,
+                          ),
+                          if (selectedTags.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            _SelectedTags(tags: selectedTags),
+                          ],
                           const SizedBox(height: 12),
                           SizedBox(
                             height: 44,
@@ -559,9 +552,7 @@ class _TagSelectButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = selectedCount == 0
-        ? '태그 선택 (선택)'
-        : '태그 선택 ($selectedCount/3)';
+    final label = '태그 선택 ($selectedCount/3)';
     return SizedBox(
       height: 44,
       child: Material(
@@ -584,7 +575,7 @@ class _TagSelectButton extends StatelessWidget {
                       label,
                       style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         color: Color(0xE6D7CCB9),
                       ),
                     ),
@@ -657,30 +648,48 @@ class _SelectedTags extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final tag in tags.take(3))
-          Container(
-            height: 22,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0x33171411),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Center(
-              child: Text(
-                tag,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xE6F2EBDD),
-                ),
-              ),
-            ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int i = 0; i < tags.length; i++) ...[
+            _SelectedTagChip(label: tags[i]),
+            if (i != tags.length - 1) const SizedBox(width: 6),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectedTagChip extends StatelessWidget {
+  const _SelectedTagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 120),
+      child: Container(
+        height: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0x24171411),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: Color(0xEBD7CCB9),
           ),
-      ],
+        ),
+      ),
     );
   }
 }

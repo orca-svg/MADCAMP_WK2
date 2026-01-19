@@ -1,13 +1,8 @@
-import 'dart:math';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/messages.dart';
+import '../data/comfort_repository.dart';
 import 'prefs_provider.dart';
-
-const _messageIdKey = 'daily_message_id';
-const _messageDateKey = 'daily_message_date';
 
 class DailyMessageState {
   final int? messageId;
@@ -16,6 +11,7 @@ class DailyMessageState {
   final bool hasTuned;
   final bool hasSeenTodayMessage;
   final String? lastSeenDate;
+  final DateTime? firstCheckTime;
 
   const DailyMessageState({
     this.messageId,
@@ -24,6 +20,7 @@ class DailyMessageState {
     this.hasTuned = false,
     this.hasSeenTodayMessage = false,
     this.lastSeenDate,
+    this.firstCheckTime,
   });
 
   DailyMessageState copyWith({
@@ -33,6 +30,7 @@ class DailyMessageState {
     bool? hasTuned,
     bool? hasSeenTodayMessage,
     String? lastSeenDate,
+    DateTime? firstCheckTime,
   }) {
     return DailyMessageState(
       messageId: messageId ?? this.messageId,
@@ -42,6 +40,7 @@ class DailyMessageState {
       hasSeenTodayMessage:
           hasSeenTodayMessage ?? this.hasSeenTodayMessage,
       lastSeenDate: lastSeenDate ?? this.lastSeenDate,
+      firstCheckTime: firstCheckTime ?? this.firstCheckTime,
     );
   }
 }
@@ -50,48 +49,24 @@ class DailyMessageController extends StateNotifier<DailyMessageState> {
   DailyMessageController(this._prefs) : super(const DailyMessageState());
 
   final SharedPreferences _prefs;
-  final Random _random = Random();
+  final ComfortRepository _repository = ComfortRepository();
 
   void power() {
-    final today = _todayStamp();
-    final storedDate = _prefs.getString(_messageDateKey);
-    final storedId = _prefs.getInt(_messageIdKey);
-
-    int chosenId;
-    bool isRepeat = false;
-
-    if (storedDate == today && storedId != null && _isValidId(storedId)) {
-      chosenId = storedId;
-      isRepeat = true;
-    } else {
-      chosenId = _random.nextInt(kComfortMessages.length);
-      _prefs.setString(_messageDateKey, today);
-      _prefs.setInt(_messageIdKey, chosenId);
-    }
+    final result = _repository.getDailyComfort(_prefs);
 
     state = DailyMessageState(
-      messageId: chosenId,
-      message: kComfortMessages[chosenId],
-      isRepeat: isRepeat,
+      messageId: result.id,
+      message: result.message,
+      isRepeat: result.isRepeat,
       hasTuned: true,
       hasSeenTodayMessage: true,
-      lastSeenDate: today,
+      lastSeenDate: result.dateKey,
+      firstCheckTime: result.seenAt,
     );
   }
 
   void resetSession() {
     state = const DailyMessageState();
-  }
-
-  bool _isValidId(int id) {
-    return id >= 0 && id < kComfortMessages.length;
-  }
-
-  String _todayStamp() {
-    final now = DateTime.now();
-    return '${now.year.toString().padLeft(4, '0')}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
   }
 }
 

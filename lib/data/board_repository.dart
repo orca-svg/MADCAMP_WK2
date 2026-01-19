@@ -6,6 +6,9 @@ class BoardPost {
     required this.tags,
     required this.createdAt,
     required this.isMine,
+    required this.authorId,
+    this.likedUserIds = const [],
+    this.acceptedCommentId,
     this.empathyCount = 0,
   });
 
@@ -15,6 +18,9 @@ class BoardPost {
   final List<String> tags;
   final DateTime createdAt;
   final bool isMine;
+  final String? authorId;
+  final List<String> likedUserIds;
+  final String? acceptedCommentId;
   final int empathyCount;
 }
 
@@ -39,6 +45,8 @@ class MockBoardRepository implements BoardRepository {
       tags: const ['#외로움 🌙'],
       createdAt: DateTime.now().subtract(const Duration(hours: 2)),
       isMine: false,
+      authorId: 'listener_001',
+      likedUserIds: const ['radio_test'],
       empathyCount: 12,
     ),
     BoardPost(
@@ -48,6 +56,8 @@ class MockBoardRepository implements BoardRepository {
       tags: const ['#학업 📚', '#관계 🤝'],
       createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       isMine: true,
+      authorId: 'radio_test',
+      acceptedCommentId: 'c1',
       empathyCount: 4,
     ),
     BoardPost(
@@ -57,6 +67,8 @@ class MockBoardRepository implements BoardRepository {
       tags: const ['#불안 😰'],
       createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
       isMine: false,
+      authorId: 'listener_002',
+      likedUserIds: const ['listener_003'],
       empathyCount: 21,
     ),
   ];
@@ -96,6 +108,8 @@ class MockBoardRepository implements BoardRepository {
       tags: tags.isEmpty ? const ['#그냥_들어줘 🎧'] : List<String>.from(tags),
       createdAt: DateTime.now(),
       isMine: true,
+      authorId: 'radio_test',
+      likedUserIds: const [],
       empathyCount: 0,
     );
     _myPosts.insert(0, post);
