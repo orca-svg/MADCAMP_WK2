@@ -1,34 +1,24 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { AdviceService } from './advice.service';
-import { CreateAdviceDto } from './dto/create-advice.dto';
-import { UpdateAdviceDto } from './dto/update-advice.dto';
+import { ApiGetResponse } from 'src/common/decorators/swagger.decorator';
+import { AdviceEntity } from './entities/advice.entity';
+import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
 
 @Controller('advice')
 export class AdviceController {
   constructor(private readonly adviceService: AdviceService) {}
 
-  @Post()
-  create(@Body() createAdviceDto: CreateAdviceDto) {
-    return this.adviceService.create(createAdviceDto);
-  }
-
   @Get()
+  @ApiGetResponse(AdviceEntity, 'Get all advice')
+  @ResponseMessage('Advice list retrieved.')
   findAll() {
     return this.adviceService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.adviceService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAdviceDto: UpdateAdviceDto) {
-    return this.adviceService.update(+id, updateAdviceDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adviceService.remove(+id);
+  @Get('random')
+  @ApiGetResponse(AdviceEntity, 'Get random advice')
+  @ResponseMessage('Random advice retrieved.')
+  funcRandom() {
+    return this.adviceService.funcRandom();
   }
 }

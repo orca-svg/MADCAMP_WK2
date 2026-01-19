@@ -1,26 +1,28 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAdviceDto } from './dto/create-advice.dto';
-import { UpdateAdviceDto } from './dto/update-advice.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class AdviceService {
-  create(createAdviceDto: CreateAdviceDto) {
-    return 'This action adds a new advice';
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   findAll() {
-    return `This action returns all advice`;
+    return this.prisma.advice.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} advice`;
-  }
+  async funcRandom() {
+    const advice = await this.prisma.$queryRaw<
+      { id: string; content: string; author: string | null }[]
+    >`
+      SELECT id, content, author
+      FROM "Advice"
+      ORDER BY RANDOM()
+      LIMIT 1;
+    `;
 
-  update(id: number, updateAdviceDto: UpdateAdviceDto) {
-    return `This action updates a #${id} advice`;
-  }
+    if (!advice[0]) {
+      throw new NotFoundException('Advice not found');
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} advice`;
+    return advice[0];
   }
 }
