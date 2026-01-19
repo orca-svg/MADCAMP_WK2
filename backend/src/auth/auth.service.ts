@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
+
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -16,20 +16,19 @@ export class AuthService {
 
     if (!user) {
       const nickname = reqUser.name ?? reqUser.email.split('@')[0];
-      const hashedPassword = await bcrypt.hash('GOOGLE_LOGIN_USER', 10);
       user = await this.prisma.user.create({
         data: {
           email: reqUser.email,
           nickname,
-          password: hashedPassword,
+          name: reqUser.name || null,
+          image: reqUser.picture || null,
         },
       });
     }
-    const { password, ...safeUser } = user;
 
     return {
       message: 'Google Login Success!',
-      user: safeUser,
+      user: user,
     };
   }
 }
