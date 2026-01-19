@@ -12,12 +12,11 @@ async function bootstrap() {
   const reflector = app.get('Reflector');
   app.useGlobalInterceptors(new TransformInterceptor(reflector));
   app.useGlobalFilters(new HttpExceptionFilter());
+  app.use(cookieParser());
 
   const config = new BaseApiDocument().initializeOptions();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
-  app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000);
 }
