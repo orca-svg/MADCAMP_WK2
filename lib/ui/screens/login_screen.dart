@@ -88,10 +88,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Welcome Back', style: theme.textTheme.headlineMedium),
+                      Text('다시 만나서 반가워요',
+                          style: theme.textTheme.headlineMedium),
                       const SizedBox(height: 8),
                       Text(
-                        'Tune in with your username and password.',
+                        '아이디와 비밀번호로 로그인하세요.',
                         style: theme.textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 20),
@@ -103,11 +104,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               controller: _usernameController,
                               textInputAction: TextInputAction.next,
                               decoration: const InputDecoration(
-                                labelText: 'Username',
+                                labelText: '아이디',
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Username is required.';
+                                  return '아이디를 입력해 주세요.';
                                 }
                                 return null;
                               },
@@ -118,11 +119,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               textInputAction: TextInputAction.done,
                               obscureText: true,
                               decoration: const InputDecoration(
-                                labelText: 'Password',
+                                labelText: '비밀번호',
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Password is required.';
+                                  return '비밀번호를 입력해 주세요.';
                                 }
                                 return null;
                               },
@@ -153,7 +154,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               onPressed: _isSubmitting
                                   ? null
                                   : () => context.go('/access?mode=signup'),
-                              child: const Text('Create an account'),
+                              child: const Text('회원가입'),
                             ),
                           ],
                         ),

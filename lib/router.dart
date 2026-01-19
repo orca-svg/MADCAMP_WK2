@@ -22,9 +22,16 @@ class _TabConfig {
 
 const _tabs = [
   _TabConfig('HOME', '/home'),
-  _TabConfig('TUNE', '/tune'),
-  _TabConfig('OPEN', '/open'),
-  _TabConfig('MY', '/my'),
+  _TabConfig('주파수 조절', '/tune'),
+  _TabConfig('열린 주파수', '/open'),
+  _TabConfig('내 라디오', '/my'),
+];
+
+const _tabViews = [
+  HomeScreen(),
+  TuneScreen(),
+  OpenScreen(),
+  MyScreen(),
 ];
 
 const _authRoutes = ['/access'];
@@ -64,9 +71,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 tabIndex: _authIndexForLocation(state.uri.path),
                 showControls: false,
                 enableIndicatorNudge: false,
-                indicatorLabelPadding: 2,
-                indicatorLeftReserved: 58,
-                needlePositionOverride: 0.06,
+                needlePositionOverride: 0.0,
+                needleColor: const Color(0xFF9A9A9A),
                 onPower: () {
                   final notifier = ref.read(powerStateProvider.notifier);
                   notifier.state = !notifier.state;
@@ -84,10 +90,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           return Consumer(
             builder: (context, ref, _) {
               final powerOn = ref.watch(powerStateProvider);
+              final isOpenDetail = location.startsWith('/open/') &&
+                  location != '/open';
+              final contentOverride = isOpenDetail ? child : null;
               return RadioAppShell(
                 indicatorLabel: _tabs[tabIndex].label,
                 tabIndex: tabIndex,
                 powerOn: powerOn,
+                tabViews: _tabViews,
+                child: contentOverride,
                 onPrev: () {
                   final nextIndex =
                       (tabIndex - 1 + _tabs.length) % _tabs.length;
@@ -108,7 +119,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ref.read(dailyMessageProvider.notifier).power();
                   }
                 },
-                child: child,
               );
             },
           );

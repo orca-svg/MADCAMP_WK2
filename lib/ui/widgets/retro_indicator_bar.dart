@@ -6,6 +6,7 @@ class RetroIndicatorBar extends StatefulWidget {
     super.key,
     required this.label,
     required this.needlePosition,
+    this.needleColor,
     this.leftReserved = 86,
     this.labelPadding = 14,
     this.tabIndex = 0,
@@ -14,6 +15,7 @@ class RetroIndicatorBar extends StatefulWidget {
 
   final String label;
   final double needlePosition;
+  final Color? needleColor;
   final double leftReserved;
   final double labelPadding;
   final int tabIndex;
@@ -119,6 +121,7 @@ class _RetroIndicatorBarState extends State<RetroIndicatorBar>
                       value,
                       leftReserved: widget.leftReserved,
                       rightReserved: 0,
+                      needleColor: widget.needleColor,
                     ),
                   );
                 },
@@ -161,11 +164,13 @@ class _IndicatorPainter extends CustomPainter {
     this.needlePosition, {
     required this.leftReserved,
     required this.rightReserved,
-  });
+    Color? needleColor,
+  }) : needleColor = needleColor ?? const Color(0xFFE3392B);
 
   final double needlePosition;
   final double leftReserved;
   final double rightReserved;
+  final Color needleColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -192,12 +197,12 @@ class _IndicatorPainter extends CustomPainter {
 
     final needleX = startX + tickAreaWidth * needlePosition;
     final glowPaint = Paint()
-      ..color = const Color(0x73E3392B)
+      ..color = needleColor.withOpacity(0.45)
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     final needlePaint = Paint()
-      ..color = const Color(0xFFE3392B)
+      ..color = needleColor
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
 
@@ -215,7 +220,7 @@ class _IndicatorPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(needleX, size.height * 0.2),
       2.6,
-      Paint()..color = const Color(0xFFE3392B),
+      Paint()..color = needleColor,
     );
   }
 
@@ -223,6 +228,7 @@ class _IndicatorPainter extends CustomPainter {
   bool shouldRepaint(covariant _IndicatorPainter oldDelegate) {
     return oldDelegate.needlePosition != needlePosition ||
         oldDelegate.leftReserved != leftReserved ||
-        oldDelegate.rightReserved != rightReserved;
+        oldDelegate.rightReserved != rightReserved ||
+        oldDelegate.needleColor != needleColor;
   }
 }

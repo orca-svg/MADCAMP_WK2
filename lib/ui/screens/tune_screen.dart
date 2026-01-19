@@ -61,9 +61,9 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 8),
-        Text('TUNE', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
+        Text('주파수 조절', style: theme.textTheme.headlineMedium),
+        const SizedBox(height: 10),
         Container(
           margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(10),

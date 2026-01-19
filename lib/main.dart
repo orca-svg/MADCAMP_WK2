@@ -27,9 +27,16 @@ class RadioApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final baseTheme = RadioAppTheme.theme;
+    final appTheme = baseTheme.copyWith(
+      textTheme: baseTheme.textTheme.apply(fontFamily: 'Hakgyoansim'),
+      primaryTextTheme: baseTheme.primaryTextTheme.apply(
+        fontFamily: 'Hakgyoansim',
+      ),
+    );
     return MaterialApp.router(
       title: '공명',
-      theme: RadioAppTheme.theme,
+      theme: appTheme,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
     );

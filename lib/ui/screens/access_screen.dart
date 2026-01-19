@@ -92,11 +92,11 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
     final confirm = _confirmController.text.trim();
 
     if (_blockedNicknames.contains(nickname.toLowerCase())) {
-      _showSnack('이미 사용 중인 Nickname 입니다.');
+      _showSnack('이미 사용 중인 닉네임입니다.');
       return;
     }
     if (_blockedUsernames.contains(username.toLowerCase())) {
-      _showSnack('이미 사용 중인 Username 입니다.');
+      _showSnack('이미 사용 중인 아이디입니다.');
       return;
     }
     if (password.length < 6) {
@@ -167,12 +167,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Welcome Back',
+                                '다시 만나서 반가워요',
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Tune in with your username and password.',
+                                '아이디와 비밀번호로 로그인하세요.',
                                 style: theme.textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 14),
@@ -184,12 +184,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       controller: _loginUsernameController,
                                       textInputAction: TextInputAction.next,
                                       decoration: const InputDecoration(
-                                        labelText: 'Username',
+                                        labelText: '아이디',
                                       ),
                                       validator: (value) {
                                         if (value == null ||
                                             value.trim().isEmpty) {
-                                          return 'Username is required.';
+                                          return '아이디를 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -200,12 +200,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       textInputAction: TextInputAction.done,
                                       obscureText: true,
                                       decoration: const InputDecoration(
-                                        labelText: 'Password',
+                                        labelText: '비밀번호',
                                       ),
                                       validator: (value) {
                                         if (value == null ||
                                             value.trim().isEmpty) {
-                                          return 'Password is required.';
+                                          return '비밀번호를 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -239,7 +239,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       onPressed: _isSubmitting
                                           ? null
                                           : () => _setMode(AccessMode.signup),
-                                      child: const Text('Create an account'),
+                                      child: const Text('회원가입'),
                                     ),
                                   ],
                                 ),
@@ -254,12 +254,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Create Your Signal',
+                                '당신의 라디오를 만들어 보세요',
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Set your nickname and tune the station.',
+                                '닉네임과 계정을 설정해 주세요.',
                                 style: theme.textTheme.bodyMedium,
                               ),
                               const SizedBox(height: 14),
@@ -271,12 +271,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       controller: _nicknameController,
                                       textInputAction: TextInputAction.next,
                                       decoration: const InputDecoration(
-                                        labelText: 'Nickname',
+                                        labelText: '닉네임',
                                       ),
                                       validator: (value) {
                                         final trimmed = value?.trim() ?? '';
                                         if (trimmed.isEmpty) {
-                                          return 'Nickname is required.';
+                                          return '닉네임을 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -286,12 +286,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       controller: _usernameController,
                                       textInputAction: TextInputAction.next,
                                       decoration: const InputDecoration(
-                                        labelText: 'Username',
+                                        labelText: '아이디',
                                       ),
                                       validator: (value) {
                                         final trimmed = value?.trim() ?? '';
                                         if (trimmed.isEmpty) {
-                                          return 'Username is required.';
+                                          return '아이디를 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -302,12 +302,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       textInputAction: TextInputAction.next,
                                       obscureText: true,
                                       decoration: const InputDecoration(
-                                        labelText: 'Password',
+                                        labelText: '비밀번호',
                                       ),
                                       validator: (value) {
                                         final trimmed = value?.trim() ?? '';
                                         if (trimmed.isEmpty) {
-                                          return 'Password is required.';
+                                          return '비밀번호를 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -318,12 +318,12 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       textInputAction: TextInputAction.done,
                                       obscureText: true,
                                       decoration: const InputDecoration(
-                                        labelText: 'Confirm password',
+                                        labelText: '비밀번호 확인',
                                       ),
                                       validator: (value) {
                                         final trimmed = value?.trim() ?? '';
                                         if (trimmed.isEmpty) {
-                                          return 'Confirm your password.';
+                                          return '비밀번호 확인을 입력해 주세요.';
                                         }
                                         return null;
                                       },
@@ -338,7 +338,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                         );
                                       },
                                       title: const Text(
-                                        'I agree to the daily comfort ritual.',
+                                        '오늘의 위로를 수신하는 것에 동의합니다.',
                                       ),
                                       controlAffinity:
                                           ListTileControlAffinity.leading,
@@ -353,7 +353,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                             : _submitSignup,
                                         child: Text(
                                           _isSubmitting
-                                              ? 'Creating...'
+                                              ? '가입 중...'
                                               : 'Sign Up',
                                         ),
                                       ),
@@ -363,7 +363,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                       onPressed: _isSubmitting
                                           ? null
                                           : () => _setMode(AccessMode.login),
-                                      child: const Text('Back to login'),
+                                      child: const Text('로그인으로 돌아가기'),
                                     ),
                                   ],
                                 ),

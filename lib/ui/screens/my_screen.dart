@@ -5,6 +5,8 @@ import '../../providers/bookmarks_provider.dart';
 import '../../providers/board_provider.dart';
 import '../../providers/daily_message_provider.dart';
 
+const _readableBodyFont = 'ChosunCentennial';
+
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
 
@@ -19,20 +21,21 @@ class MyScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 10),
-        Text('MY', style: theme.textTheme.headlineMedium),
+        Text('내 라디오', style: theme.textTheme.headlineMedium),
         const SizedBox(height: 10),
         Text(
-          'Signed in as ${authState.nickname ?? 'Listener'}',
+          '${authState.nickname ?? '리스너'} 님으로 로그인되어 있어요.',
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 6),
         Text(
-          'Username: ${authState.username ?? '-'}',
+          '아이디: ${authState.username ?? '-'}',
           style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
         ),
         const SizedBox(height: 16),
         Row(
           children: [
+            SizedBox(width: 8),
             Expanded(
               child: _StatCard(
                 label: '내 사연',
@@ -49,7 +52,7 @@ class MyScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 18),
         Text('내가 쓴 사연', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Expanded(
           child: ListView.builder(
             itemCount: myPosts.length,
@@ -65,13 +68,20 @@ class MyScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(post.title, style: theme.textTheme.titleSmall),
+                    Text(
+                      post.title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontFamily: _readableBodyFont,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       post.body,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: _readableBodyFont,
+                      ),
                     ),
                   ],
                 ),

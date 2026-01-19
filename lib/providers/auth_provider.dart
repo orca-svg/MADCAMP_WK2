@@ -108,7 +108,7 @@ class AuthController extends StateNotifier<AuthState> {
     }
     if (storedUsername != username || storedPassword != password) {
       debugPrint('Login failed: invalid credentials.');
-      return 'Username or password is incorrect.';
+      return '아이디 또는 비밀번호가 올바르지 않습니다.';
     }
 
     debugPrint('Login success.');
@@ -131,7 +131,7 @@ class AuthController extends StateNotifier<AuthState> {
     required String password,
   }) async {
     if (username.isEmpty || password.isEmpty || nickname.isEmpty) {
-      return 'All fields are required.';
+      return '모든 항목을 입력해 주세요.';
     }
 
     await _prefs.setString(_nicknameKey, nickname);

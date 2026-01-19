@@ -75,8 +75,8 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
     final scale = _pressed ? 0.96 : 1.0;
     final blur = _pressed ? 6.0 : 14.0;
     final iconColor = enabled
-        ? const Color(0xFF3B3B3B)
-        : const Color(0x663B3B3B);
+        ? const Color(0xFF2B2620)
+        : const Color(0x662B2620);
 
     return Tooltip(
       message: widget.tooltip,
@@ -87,6 +87,7 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
           onTap: enabled ? widget.onPressed : null,
           onTapDown: enabled
               ? (_) {
+                  HapticFeedback.lightImpact();
                   _setPressed(true);
                 }
               : null,
@@ -107,9 +108,9 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFFEFE3CF),
-                    Color(0xFFD8C7A6),
-                    Color(0xFFB79E7A),
+                    Color(0xFFF2E7D6),
+                    Color(0xFFE0CFB3),
+                    Color(0xFFC8B08A),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -118,7 +119,7 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
                   image: AssetImage('assets/textures/brushed_metal.png'),
                   fit: BoxFit.cover,
                   colorFilter: ColorFilter.mode(
-                    Color(0x33D8C7A6),
+                    Color(0x22E0CFB3),
                     BlendMode.softLight,
                   ),
                 ),
@@ -135,9 +136,8 @@ class _PressableCircleButtonState extends State<_PressableCircleButton> {
                   ),
                 ],
                 border: Border.all(
-                  color:
-                      enabled ? const Color(0x66FFFFFF) : const Color(0x33FFFFFF),
-                  width: 1.2,
+                  color: const Color(0x55FFFFFF),
+                  width: 1,
                 ),
               ),
               child: Center(
@@ -219,7 +219,7 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
     final iconColor =
-        widget.isActive ? const Color(0xFFE53935) : const Color(0xFF3B3B3B);
+        widget.isActive ? const Color(0xFFE53935) : const Color(0xFF2B2620);
     final inactiveColor =
         enabled ? iconColor : iconColor.withOpacity(0.5);
 
@@ -232,7 +232,7 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
           onTap: enabled ? widget.onPressed : null,
           onTapDown: enabled
               ? (_) {
-                  HapticFeedback.mediumImpact();
+                  HapticFeedback.lightImpact();
                 }
               : null,
           highlightColor: Colors.white.withOpacity(0.06),
@@ -251,12 +251,20 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                   height: widget.size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: widget.isActive
+                        ? const RadialGradient(
+                            colors: [
+                              Color(0x66E53935),
+                              Color(0x00E53935),
+                            ],
+                          )
+                        : null,
                     boxShadow: widget.isActive
                         ? const [
                             BoxShadow(
-                              color: Color(0x8CE53935),
-                              blurRadius: 24,
-                              spreadRadius: 4,
+                              color: Color(0x99E53935),
+                              blurRadius: 26,
+                              spreadRadius: 6,
                             ),
                           ]
                         : const [],
@@ -271,9 +279,9 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
                         colors: [
-                          Color(0xFFEFE3CF),
-                          Color(0xFFD8C7A6),
-                          Color(0xFFB79E7A),
+                          Color(0xFFF2E7D6),
+                          Color(0xFFE0CFB3),
+                          Color(0xFFC8B08A),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -282,7 +290,7 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                         image: AssetImage('assets/textures/brushed_metal.png'),
                         fit: BoxFit.cover,
                         colorFilter: ColorFilter.mode(
-                          Color(0x33D8C7A6),
+                          Color(0x22E0CFB3),
                           BlendMode.softLight,
                         ),
                       ),
@@ -299,8 +307,8 @@ class _PowerCircleButtonState extends State<_PowerCircleButton>
                         ),
                       ],
                       border: Border.all(
-                        color: const Color(0x66FFFFFF),
-                        width: 1.2,
+                        color: const Color(0x55FFFFFF),
+                        width: 1,
                       ),
                     ),
                     child: Stack(

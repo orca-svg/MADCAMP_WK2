@@ -33,7 +33,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid || !_agreed) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all required fields.')),
+        const SnackBar(content: Text('필수 항목을 모두 입력해 주세요.')),
       );
       return;
     }
@@ -86,12 +86,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Create Your Signal',
+                        '첫 신호를 만들어 보세요',
                         style: theme.textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Set your nickname and tune the station.',
+                        '닉네임과 계정을 설정해 주세요.',
                         style: theme.textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 20),
@@ -103,10 +103,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               controller: _nicknameController,
                               textInputAction: TextInputAction.next,
                               decoration:
-                                  const InputDecoration(labelText: 'Nickname'),
+                                  const InputDecoration(labelText: '닉네임'),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Nickname is required.';
+                                  return '닉네임을 입력해 주세요.';
                                 }
                                 return null;
                               },
@@ -116,10 +116,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               controller: _usernameController,
                               textInputAction: TextInputAction.next,
                               decoration:
-                                  const InputDecoration(labelText: 'Username'),
+                                  const InputDecoration(labelText: '아이디'),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Username is required.';
+                                  return '아이디를 입력해 주세요.';
                                 }
                                 return null;
                               },
@@ -130,13 +130,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               textInputAction: TextInputAction.next,
                               obscureText: true,
                               decoration:
-                                  const InputDecoration(labelText: 'Password'),
+                                  const InputDecoration(labelText: '비밀번호'),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Password is required.';
+                                  return '비밀번호를 입력해 주세요.';
                                 }
-                                if (value.trim().length < 4) {
-                                  return 'Use at least 4 characters.';
+                                if (value.trim().length < 6) {
+                                  return '비밀번호는 6자 이상이어야 합니다.';
                                 }
                                 return null;
                               },
@@ -147,15 +147,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               textInputAction: TextInputAction.done,
                               obscureText: true,
                               decoration: const InputDecoration(
-                                labelText: 'Confirm password',
+                                labelText: '비밀번호 확인',
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Confirm your password.';
+                                  return '비밀번호 확인을 입력해 주세요.';
                                 }
                                 if (value.trim() !=
                                     _passwordController.text.trim()) {
-                                  return 'Passwords do not match.';
+                                  return '비밀번호가 일치하지 않습니다.';
                                 }
                                 return null;
                               },
@@ -168,7 +168,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 setState(() => _agreed = value ?? false);
                               },
                               title: const Text(
-                                'I agree to the daily comfort ritual.',
+                                '오늘의 위로를 수신하는 것에 동의합니다.',
                               ),
                               controlAffinity: ListTileControlAffinity.leading,
                             ),
@@ -179,7 +179,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               child: ElevatedButton(
                                 onPressed: _isSubmitting ? null : _submit,
                                 child: Text(
-                                  _isSubmitting ? 'Creating...' : 'Sign Up',
+                                  _isSubmitting ? '가입 중...' : 'Sign Up',
                                 ),
                               ),
                             ),
@@ -188,7 +188,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               onPressed: _isSubmitting
                                   ? null
                                   : () => context.go('/access'),
-                              child: const Text('Back to login'),
+                              child: const Text('로그인으로 돌아가기'),
                             ),
                           ],
                         ),

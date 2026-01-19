@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/board_provider.dart';
 
+const _readableBodyFont = 'ChosunCentennial';
+
 class OpenScreen extends ConsumerWidget {
   const OpenScreen({super.key});
 
@@ -16,8 +18,8 @@ class OpenScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 10),
-        Text('OPEN', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 8),
+        Text('열린 주파수', style: theme.textTheme.headlineMedium),
+        const SizedBox(height: 10),
         Text(
           '다른 사람들의 주파수를 둘러보세요.',
           style: theme.textTheme.bodyMedium,
@@ -47,21 +49,27 @@ class OpenScreen extends ConsumerWidget {
                               const SizedBox(width: 8),
                               Text(
                                 _formatTime(post.createdAt),
-                                style: theme.textTheme.bodySmall,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontFamily: _readableBodyFont,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Text(
                             post.title,
-                            style: theme.textTheme.titleMedium,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontFamily: _readableBodyFont,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             post.body,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontFamily: _readableBodyFont,
+                            ),
                           ),
                         ],
                       ),
@@ -100,7 +108,9 @@ class _TagChip extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelSmall,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontFamily: _readableBodyFont,
+            ),
       ),
     );
   }

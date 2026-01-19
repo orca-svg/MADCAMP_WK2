@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/board_provider.dart';
 
+const _readableBodyFont = 'ChosunCentennial';
+
 class OpenDetailScreen extends ConsumerWidget {
   const OpenDetailScreen({super.key, required this.postId});
 
@@ -27,16 +29,20 @@ class OpenDetailScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 10),
-        Text('OPEN', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 8),
+        Text('열린 주파수', style: theme.textTheme.headlineMedium),
+        const SizedBox(height: 10),
         Text(
           post.title,
-          style: theme.textTheme.titleLarge,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontFamily: _readableBodyFont,
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         Text(
           '${post.tag} · ${_formatTime(post.createdAt)}',
-          style: theme.textTheme.bodySmall,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontFamily: _readableBodyFont,
+          ),
         ),
         const SizedBox(height: 16),
         Expanded(
@@ -50,7 +56,9 @@ class OpenDetailScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               child: Text(
                 post.body,
-                style: theme.textTheme.bodyLarge,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontFamily: _readableBodyFont,
+                ),
               ),
             ),
           ),

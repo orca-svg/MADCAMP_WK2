@@ -63,6 +63,8 @@ flutter:
 
   assets:
     - assets/textures/wood_grain.jpg
+    - assets/textures/wood_grain.png
+    - assets/textures/wood_gain.jpg
     - assets/textures/brushed_metal.png
     - assets/textures/fabric_grille.png
     - assets/textures/dust.png
@@ -73,6 +75,9 @@ flutter:
     - family: ChosunCentennial
       fonts:
         - asset: assets/fonts/ChosunCentennial_otf.otf
+    - family: Hakgyoansim
+      fonts:
+        - asset: assets/fonts/Hakgyoansim Allimjang OTF R.otf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

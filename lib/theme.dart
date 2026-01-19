@@ -11,7 +11,7 @@ class RadioAppTheme {
   static ThemeData get theme {
     final base = ThemeData(
       brightness: Brightness.dark,
-      fontFamily: 'ChosunCentennial',
+      fontFamily: 'Hakgyoansim',
       colorScheme: ColorScheme.fromSeed(
         seedColor: burnishedGold,
         brightness: Brightness.dark,
