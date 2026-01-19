@@ -1,15 +1,12 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../data/board_repository.dart';
 import '../../providers/board_provider.dart';
-
-enum _TuneStage { compose, transmit, starboard }
+import '../../providers/theater_provider.dart';
 
 const _readableBodyFont = 'ChosunCentennial';
 
@@ -39,31 +36,15 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
   final _titleController = TextEditingController();
   final _storyController = TextEditingController();
   final _random = Random();
-  final Map<String, Offset> _pinPositions = {};
-
-  _TuneStage _stage = _TuneStage.compose;
   bool _publishToBoard = false;
   final List<String> _selectedTags = [];
   DateTime? _lastTagSnackAt;
-  Timer? _transmitTimer;
-
-  OverlayEntry? _popoverEntry;
-  String? _selectedPostId;
-  DateTime? _lastTapAt;
 
   @override
   void dispose() {
     _titleController.dispose();
     _storyController.dispose();
-    _transmitTimer?.cancel();
-    _removePopover();
     super.dispose();
-  }
-
-  void _removePopover() {
-    _popoverEntry?.remove();
-    _popoverEntry = null;
-    _selectedPostId = null;
   }
 
   bool _canShowTagSnack() {
@@ -193,182 +174,73 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
           tags: List<String>.from(_selectedTags),
           publish: _publishToBoard,
         );
-
-    setState(() {
-      _stage = _TuneStage.transmit;
-      if (_publishToBoard) {
-        _selectedPostId = post.id;
-      }
-    });
-
-    _transmitTimer?.cancel();
-    _transmitTimer = Timer(const Duration(milliseconds: 1100), () {
-      if (!mounted) return;
-      setState(() => _stage = _TuneStage.starboard);
-    });
-  }
-
-  void _showPopover(BoardPost post, LayerLink link) {
-    _removePopover();
-    _selectedPostId = post.id;
-    final overlay = Overlay.of(context, rootOverlay: true);
-    if (overlay == null) return;
-    _popoverEntry = OverlayEntry(
-      builder: (context) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: ModalBarrier(
-                dismissible: true,
-                color: Colors.transparent,
-                onDismiss: _removePopover,
-              ),
-            ),
-            CompositedTransformFollower(
-              link: link,
-              followerAnchor: Alignment.bottomCenter,
-              targetAnchor: Alignment.topCenter,
-              offset: const Offset(0, -12),
-              showWhenUnlinked: false,
-              child: Material(
-                color: Colors.transparent,
-                child: _StarPopover(post: post),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-    overlay.insert(_popoverEntry!);
-  }
-
-  void _handlePinTap(BoardPost post, LayerLink link) {
-    final now = DateTime.now();
-    if (_selectedPostId == post.id && _lastTapAt != null) {
-      if (now.difference(_lastTapAt!).inMilliseconds <= 900) {
-        _removePopover();
-        if (mounted) {
-          context.go('/open/${post.id}');
-        }
-        return;
-      }
-    }
-    _lastTapAt = now;
-    _showPopover(post, link);
-  }
-
-  Offset _pinOffsetFor(BoardPost post, Size size, int index) {
-    final existing = _pinPositions[post.id];
-    if (existing != null) return existing;
-    final safeWidth = size.width - 48;
-    final safeHeight = size.height - 140;
-    final x = 24 + _random.nextDouble() * safeWidth;
-    final y = 48 + _random.nextDouble() * safeHeight;
-    final offset = Offset(x, y);
-    _pinPositions[post.id] = offset;
-    return offset;
+    final allPosts = ref.read(boardControllerProvider).openPosts;
+    final pins = _buildPins(allPosts, _publishToBoard ? post : null);
+    ref.read(theaterProvider.notifier).enter(pins: pins);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final posts = ref.watch(boardControllerProvider).openPosts;
-    final isTransmit = _stage == _TuneStage.transmit;
-    final showTheater = _stage != _TuneStage.compose;
-    final zoomedOut = _stage != _TuneStage.compose;
+    final theaterActive = ref.watch(theaterProvider).isActive;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final height = constraints.maxHeight;
-        final width = constraints.maxWidth;
-        final translateY = 180 / height;
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: AnimatedOpacity(
-                opacity: showTheater ? 1 : 0,
-                duration: const Duration(milliseconds: 520),
-                curve: Curves.easeOutCubic,
-                child: Image.asset(
-                  'assets/images/frequency_theater_bg.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
+        return IgnorePointer(
+          ignoring: theaterActive,
+          child: AnimatedOpacity(
+            opacity: theaterActive ? 0 : 1,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            child: _ComposePanel(
+              theme: theme,
+              titleController: _titleController,
+              storyController: _storyController,
+              publishToBoard: _publishToBoard,
+              onPublishChanged: (value) {
+                setState(() => _publishToBoard = value);
+              },
+              selectedTags: _selectedTags,
+              onOpenTagSelector: _openTagSelectorSheet,
+              onSend: _send,
             ),
-            Positioned.fill(
-              child: AnimatedOpacity(
-                opacity: isTransmit ? 1 : 0,
-                duration: const Duration(milliseconds: 520),
-                curve: Curves.easeOutCubic,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        Color(0x33000000),
-                        Color(0x66000000),
-                      ],
-                      radius: 1.0,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 620),
-                curve: Curves.easeInOutCubic,
-                height: zoomedOut ? height * 0.72 : height,
-                width: width,
-                child: AnimatedScale(
-                  duration: const Duration(milliseconds: 520),
-                  curve: Curves.easeOutCubic,
-                  scale: zoomedOut ? 0.78 : 1.0,
-                  child: AnimatedSlide(
-                    duration: const Duration(milliseconds: 520),
-                    curve: Curves.easeOutCubic,
-                    offset: zoomedOut ? Offset(0, translateY) : Offset.zero,
-                    child: IgnorePointer(
-                      ignoring: _stage != _TuneStage.compose,
-                      child: _stage == _TuneStage.compose
-                          ? _ComposePanel(
-                              theme: theme,
-                              titleController: _titleController,
-                              storyController: _storyController,
-                              publishToBoard: _publishToBoard,
-                              onPublishChanged: (value) {
-                                setState(() => _publishToBoard = value);
-                              },
-                              selectedTags: _selectedTags,
-                              onOpenTagSelector: _openTagSelectorSheet,
-                              onSend: _send,
-                            )
-                          : const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (_stage == _TuneStage.starboard)
-              Positioned.fill(
-                child: _StarBoard(
-                  posts: posts,
-                  onPinTap: _handlePinTap,
-                  pinOffsetFor: (post, index) =>
-                      _pinOffsetFor(post, Size(width, height), index),
-                ),
-              ),
-            if (isTransmit)
-              Positioned(
-                top: 120,
-                left: 24,
-                right: 24,
-                child: _TransmitBanner(theme: theme),
-              ),
-          ],
+          ),
         );
       },
     );
+  }
+
+  List<StarPin> _buildPins(List<BoardPost> posts, BoardPost? newPost) {
+    final buffer = List<BoardPost>.from(posts);
+    if (newPost != null) {
+      buffer.insert(0, newPost);
+    }
+    buffer.shuffle(_random);
+    final selected = buffer.take(10).toList();
+    final pins = selected
+        .map(
+          (post) => StarPin(
+            id: post.id,
+            title: post.title,
+            preview: post.body,
+            tags: post.tags.take(3).toList(),
+          ),
+        )
+        .toList();
+    if (pins.length < 10) {
+      final gap = 10 - pins.length;
+      for (int i = 0; i < gap; i++) {
+        pins.add(
+          StarPin(
+            id: 'ghost_$i',
+            title: '주파수 신호',
+            preview: '잠시 연결되는 사연을 기다리고 있어요.',
+            tags: const ['#그냥_들어줘 🎧'],
+          ),
+        );
+      }
+    }
+    return pins;
   }
 }
 

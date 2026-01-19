@@ -1,12 +1,17 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../widgets/radio_tone.dart';
 import '../widgets/retro_indicator_bar.dart';
 import '../widgets/speaker_content_area.dart';
+import '../screens/open_detail_screen.dart';
+import '../../providers/theater_provider.dart';
 
-class RadioAppShell extends StatefulWidget {
+class RadioAppShell extends ConsumerStatefulWidget {
   const RadioAppShell({
     super.key,
     this.child,
@@ -43,13 +48,20 @@ class RadioAppShell extends StatefulWidget {
   final VoidCallback? onNext;
 
   @override
-  State<RadioAppShell> createState() => _RadioAppShellState();
+  ConsumerState<RadioAppShell> createState() => _RadioAppShellState();
 }
 
-class _RadioAppShellState extends State<RadioAppShell> {
+class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   DateTime? _lastPowerOffSnackAt;
   bool _powerOffNoticeVisible = false;
   Timer? _noticeTimer;
+  final Map<String, Offset> _starPositions = {};
+  final Map<String, LayerLink> _starLinks = {};
+  DateTime? _lastPinTapAt;
+  String? _lastPinId;
+  bool _wasTheaterActive = false;
+  OverlayEntry? _bubbleEntry;
+  String? _bubbleStarId;
 
   bool _canShowPowerOffSnack() {
     final last =
@@ -97,35 +109,85 @@ class _RadioAppShellState extends State<RadioAppShell> {
   @override
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.of(context).padding.top;
+    final theater = ref.watch(theaterProvider);
+    final theaterController = ref.read(theaterProvider.notifier);
+    if (theater.isActive != _wasTheaterActive) {
+      _starPositions.clear();
+      _starLinks.clear();
+      _lastPinTapAt = null;
+      _lastPinId = null;
+      _closeBubble();
+      _wasTheaterActive = theater.isActive;
+    }
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const Positioned.fill(child: RadioFrameBackground()),
-          SafeArea(
-            child: Padding(
-              padding: RadioTone.shellPadding,
-              child: _RadioLayout(
-                indicatorLabel: widget.indicatorLabel,
-                tabIndex: widget.tabIndex,
-                indicatorLeftReserved: widget.indicatorLeftReserved,
-                indicatorLabelPadding: widget.indicatorLabelPadding,
-                enableIndicatorNudge: widget.enableIndicatorNudge,
-                needlePositionOverride: widget.needlePositionOverride,
-                needleColor: widget.needleColor,
-                showControls: widget.showControls,
-                powerOn: widget.powerOn,
-                isLoggedIn: widget.isLoggedIn,
-                onPrev: widget.onPrev == null
-                    ? null
-                    : () => _handlePrev(context),
-                onPower: widget.onPower,
-                onNext: widget.onNext == null
-                    ? null
-                    : () => _handleNext(context),
-                child: widget.child,
-                tabViews: widget.tabViews,
+          Positioned.fill(
+            child: _TheaterBackground(isActive: theater.isActive),
+          ),
+          if (!theater.isActive)
+            Positioned.fill(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const Positioned.fill(child: RadioFrameBackground()),
+                  SafeArea(
+                    child: Padding(
+                      padding: RadioTone.shellPadding,
+                      child: _RadioLayout(
+                        indicatorLabel: widget.indicatorLabel,
+                        tabIndex: widget.tabIndex,
+                        indicatorLeftReserved: widget.indicatorLeftReserved,
+                        indicatorLabelPadding: widget.indicatorLabelPadding,
+                        enableIndicatorNudge: widget.enableIndicatorNudge,
+                        needlePositionOverride: widget.needlePositionOverride,
+                        needleColor: widget.needleColor,
+                        showControls: widget.showControls,
+                        powerOn: widget.powerOn,
+                        isLoggedIn: widget.isLoggedIn,
+                        onPrev: widget.onPrev == null
+                            ? null
+                            : () => _handlePrev(context),
+                        onPower: widget.onPower,
+                        onNext: widget.onNext == null
+                            ? null
+                            : () => _handleNext(context),
+                        child: widget.child,
+                        tabViews: widget.tabViews,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Positioned(
+              right: 18,
+              bottom: 170,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: theaterController.exit,
+                child: _TheaterMiniRadio(label: widget.indicatorLabel),
+              ),
+            ),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !theater.isActive,
+              child: AnimatedOpacity(
+                opacity: theater.isActive ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                child: _StarPinsOverlay(
+                  pins: theater.pins,
+                  positions: _starPositions,
+                  links: _starLinks,
+                  onSelect: (pin) => _handlePinTap(
+                    context,
+                    pin,
+                    theaterController,
+                  ),
+                ),
               ),
             ),
           ),
@@ -157,6 +219,630 @@ class _RadioAppShellState extends State<RadioAppShell> {
       ),
     );
   }
+
+  void _handlePinTap(
+    BuildContext context,
+    StarPin pin,
+    TheaterController controller,
+  ) {
+    final now = DateTime.now();
+    final isSame = _lastPinId == pin.id;
+    if (isSame && _lastPinTapAt != null) {
+      if (now.difference(_lastPinTapAt!).inMilliseconds <= 900) {
+        _closeBubble();
+        if (!_hasPostForPin(context, pin)) {
+          _showMissingDetailSheet(context);
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OpenDetailScreen(postId: pin.id),
+          ),
+        );
+        return;
+      }
+    }
+    _lastPinId = pin.id;
+    _lastPinTapAt = now;
+    if (_bubbleStarId == pin.id) {
+      _closeBubble();
+      return;
+    }
+    _showBubble(context, pin);
+  }
+
+  bool _hasPostForPin(BuildContext context, StarPin pin) {
+    return pin.id.isNotEmpty && !pin.id.startsWith('ghost_');
+  }
+
+  void _showMissingDetailSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xE61F1A17),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                '아직 상세 글이 준비되지 않았어요.',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFF2EBDD),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 40,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                      color: Color(0x2ED7CCB9),
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('돌아가기'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBubble(BuildContext context, StarPin pin) {
+    _closeBubble();
+    final link = _starLinks[pin.id];
+    if (link == null) return;
+    final starOffset = _starPositions[pin.id];
+    if (starOffset == null) return;
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+    _bubbleStarId = pin.id;
+    final screen = MediaQuery.of(context).size;
+    const bubbleW = 220.0;
+    const bubbleH = 140.0;
+    final miniRect = Rect.fromLTWH(
+      screen.width - 18 - 220,
+      screen.height - 70 - 72,
+      220,
+      72,
+    );
+    final offset = _bubbleOffsetFor(
+      starOffset,
+      screen,
+      bubbleW,
+      bubbleH,
+      miniRect,
+    );
+    _bubbleEntry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeBubble,
+                child: const ColoredBox(color: Colors.transparent),
+              ),
+            ),
+            CompositedTransformFollower(
+              link: link,
+              offset: offset,
+              showWhenUnlinked: false,
+              child: Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  onTap: () {
+                    _closeBubble();
+                    if (pin.title.trim().isEmpty &&
+                        pin.preview.trim().isEmpty) {
+                      _closeBubble();
+                      return;
+                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => OpenDetailScreen(postId: pin.id),
+                      ),
+                    );
+                  },
+                  child: _StarBubble(pin: pin),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    overlay.insert(_bubbleEntry!);
+  }
+
+  Offset _bubbleOffsetFor(
+    Offset starOffset,
+    Size screen,
+    double bubbleW,
+    double bubbleH,
+    Rect miniRect,
+  ) {
+    var dx = starOffset.dx - 160.0;
+    var dy = starOffset.dy - 120.0;
+    dx = dx.clamp(12.0, screen.width - bubbleW - 12);
+    dy = dy.clamp(12.0, screen.height - bubbleH - 12);
+    final bubbleBottom = dy + bubbleH;
+    if (bubbleBottom > miniRect.top - 8) {
+      dy = miniRect.top - bubbleH - 12;
+    }
+    return Offset(dx - starOffset.dx, dy - starOffset.dy);
+  }
+
+  void _closeBubble() {
+    _bubbleEntry?.remove();
+    _bubbleEntry = null;
+    _bubbleStarId = null;
+  }
+}
+
+class _TheaterBackground extends StatelessWidget {
+  const _TheaterBackground({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: isActive ? 1 : 0,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/frequency_theater_bg.png',
+            fit: BoxFit.cover,
+            alignment: const Alignment(0.0, -0.15),
+          ),
+          Container(color: Colors.black.withOpacity(0.18)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StarPinsOverlay extends StatelessWidget {
+  const _StarPinsOverlay({
+    required this.pins,
+    required this.positions,
+    required this.links,
+    required this.onSelect,
+  });
+
+  final List<StarPin> pins;
+  final Map<String, Offset> positions;
+  final Map<String, LayerLink> links;
+  final ValueChanged<StarPin> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final area = Rect.fromLTWH(
+          20,
+          90,
+          width - 40,
+          height - 90 - 300,
+        );
+        return Stack(
+          children: [
+            for (final pin in pins)
+              _StarPin(
+                key: ValueKey(pin.id),
+                pin: pin,
+                offset: positions.putIfAbsent(
+                  pin.id,
+                  () => _randomOffset(pin.id, area),
+                ),
+                link: links.putIfAbsent(pin.id, () => LayerLink()),
+                onTap: () => onSelect(pin),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Offset _randomOffset(String seed, Rect area) {
+    final rand = Random();
+    final x = area.left + rand.nextDouble() * area.width;
+    final y = area.top + rand.nextDouble() * area.height;
+    return Offset(x, y);
+  }
+}
+
+class _StarPin extends StatelessWidget {
+  const _StarPin({
+    super.key,
+    required this.pin,
+    required this.offset,
+    required this.link,
+    required this.onTap,
+  });
+
+  final StarPin pin;
+  final Offset offset;
+  final LayerLink link;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final rand = Random(pin.id.hashCode);
+        final size = 10 + rand.nextInt(5);
+        final blur = 6 + rand.nextInt(5);
+    final opacity = 0.65 + rand.nextDouble() * 0.25;
+    return Positioned(
+      left: offset.dx - 22,
+      top: offset.dy - 22,
+      child: CompositedTransformTarget(
+        link: link,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.translucent,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: size.toDouble(),
+                height: size.toDouble(),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF2EBDD).withOpacity(opacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFFF2EBDD).withOpacity(opacity),
+                      blurRadius: blur.toDouble(),
+                      spreadRadius: 1.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TheaterMiniRadio extends StatelessWidget {
+  const _TheaterMiniRadio({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    const outerRadius = 12.0;
+    const width = 220.0;
+    const height = 72.0;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(outerRadius),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(outerRadius),
+          border: Border.all(
+            color: const Color(0xFFD7CCB9).withOpacity(0.95),
+            width: 1,
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/textures/wood_grain.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _MiniIndicator(label: label),
+                    ),
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 82,
+                      child: _MiniSpeakerBlank(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 3),
+              Expanded(
+                flex: 1,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: const [
+                    IgnorePointer(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _MiniControlButton(icon: Icons.chevron_left),
+                          SizedBox(width: 6),
+                          _MiniControlButton(
+                            icon: Icons.power_settings_new,
+                            isPower: true,
+                          ),
+                          SizedBox(width: 6),
+                          _MiniControlButton(icon: Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniIndicator extends StatelessWidget {
+  const _MiniIndicator({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 2, 6, 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+              color: Color(0xFFF2EBDD),
+            ),
+          ),
+          const SizedBox(height: 1),
+          SizedBox(
+            height: 6,
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    for (int i = 0; i < 6; i++) ...[
+                      Container(
+                        width: 2,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      if (i != 5) const SizedBox(width: 2),
+                    ],
+                    const SizedBox(width: 6),
+                  ],
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 2,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE53935),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniSpeakerBlank extends StatelessWidget {
+  const _MiniSpeakerBlank();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 30,
+        width: 82,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/textures/fabric_grille.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Color(0x66000000),
+              BlendMode.multiply,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniControlButton extends StatelessWidget {
+  const _MiniControlButton({
+    required this.icon,
+    this.isPower = false,
+  });
+
+  final IconData icon;
+  final bool isPower;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2E8D6).withOpacity(0.95),
+        shape: BoxShape.circle,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          icon,
+          size: 12,
+          color: isPower ? const Color(0xFFD94A3A) : const Color(0xFF3A2A1D),
+        ),
+      ),
+    );
+  }
+}
+
+class _StarBubble extends StatelessWidget {
+  const _StarBubble({required this.pin});
+
+  final StarPin pin;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220, maxHeight: 140),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1714).withOpacity(0.92),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFD7CCB9).withOpacity(0.35),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pin.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF2EBDD),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  pin.preview,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFD7CCB9),
+                  ),
+                ),
+                if (pin.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    pin.tags.join(' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD7CCB9),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '자세히 보기 ›',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xBFD7CCB9),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          CustomPaint(
+            size: const Size(10, 6),
+            painter: _BubbleTailPainter(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BubbleTailPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF1A1714).withOpacity(0.92)
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PowerOffNotice extends StatelessWidget {
