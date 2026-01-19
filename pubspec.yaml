@@ -33,6 +33,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   go_router: ^14.2.7
   shared_preferences: ^2.3.2
+  audioplayers: ^5.2.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -69,6 +70,9 @@ flutter:
     - assets/textures/fabric_grille.png
     - assets/textures/dust.png
     - assets/textures/noise.png
+    - assets/audio/power_on.wav
+    - assets/audio/power_off.wav
+    - assets/audio/tune_tick.wav
     - assets/icon/app_icon.png
 
   fonts:

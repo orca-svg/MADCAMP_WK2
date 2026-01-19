@@ -14,12 +14,16 @@ class DailyMessageState {
   final String? message;
   final bool isRepeat;
   final bool hasTuned;
+  final bool hasSeenTodayMessage;
+  final String? lastSeenDate;
 
   const DailyMessageState({
     this.messageId,
     this.message,
     this.isRepeat = false,
     this.hasTuned = false,
+    this.hasSeenTodayMessage = false,
+    this.lastSeenDate,
   });
 
   DailyMessageState copyWith({
@@ -27,12 +31,17 @@ class DailyMessageState {
     String? message,
     bool? isRepeat,
     bool? hasTuned,
+    bool? hasSeenTodayMessage,
+    String? lastSeenDate,
   }) {
     return DailyMessageState(
       messageId: messageId ?? this.messageId,
       message: message ?? this.message,
       isRepeat: isRepeat ?? this.isRepeat,
       hasTuned: hasTuned ?? this.hasTuned,
+      hasSeenTodayMessage:
+          hasSeenTodayMessage ?? this.hasSeenTodayMessage,
+      lastSeenDate: lastSeenDate ?? this.lastSeenDate,
     );
   }
 }
@@ -65,6 +74,8 @@ class DailyMessageController extends StateNotifier<DailyMessageState> {
       message: kComfortMessages[chosenId],
       isRepeat: isRepeat,
       hasTuned: true,
+      hasSeenTodayMessage: true,
+      lastSeenDate: today,
     );
   }
 

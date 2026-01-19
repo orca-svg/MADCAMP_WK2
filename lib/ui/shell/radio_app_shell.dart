@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../widgets/radio_tone.dart';
@@ -11,13 +13,14 @@ class RadioAppShell extends StatefulWidget {
     this.tabViews,
     required this.indicatorLabel,
     this.tabIndex = 0,
-    this.indicatorLeftReserved = 86,
-    this.indicatorLabelPadding = 14,
+    this.indicatorLeftReserved = RadioTone.indicatorLeftSlot,
+    this.indicatorLabelPadding = RadioTone.indicatorLabelPadLeft,
     this.enableIndicatorNudge = true,
     this.needlePositionOverride,
     this.needleColor,
     this.showControls = true,
     this.powerOn = false,
+    this.isLoggedIn = true,
     this.onPrev,
     this.onPower,
     this.onNext,
@@ -34,6 +37,7 @@ class RadioAppShell extends StatefulWidget {
   final Color? needleColor;
   final bool showControls;
   final bool powerOn;
+  final bool isLoggedIn;
   final VoidCallback? onPrev;
   final VoidCallback? onPower;
   final VoidCallback? onNext;
@@ -44,6 +48,8 @@ class RadioAppShell extends StatefulWidget {
 
 class _RadioAppShellState extends State<RadioAppShell> {
   DateTime? _lastPowerOffSnackAt;
+  bool _powerOffNoticeVisible = false;
+  Timer? _noticeTimer;
 
   bool _canShowPowerOffSnack() {
     final last =
@@ -54,18 +60,16 @@ class _RadioAppShellState extends State<RadioAppShell> {
   void _showPowerOffSnack(BuildContext context) {
     if (!_canShowPowerOffSnack()) return; // 2.5s throttle.
     _lastPowerOffSnackAt = DateTime.now();
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar(); // Avoid stacking off-screen snackbars.
-    messenger.showSnackBar(
-      const SnackBar(
-        behavior: SnackBarBehavior.fixed, // Off-screen 방지.
-        duration: Duration(milliseconds: 1800),
-        content: Text(
-          '라디오의 전원이 켜지지 않았어요',
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
+    _noticeTimer?.cancel();
+    setState(() {
+      _powerOffNoticeVisible = true;
+    });
+    _noticeTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      setState(() {
+        _powerOffNoticeVisible = false;
+      });
+    });
   }
 
   void _handlePrev(BuildContext context) {
@@ -85,7 +89,14 @@ class _RadioAppShellState extends State<RadioAppShell> {
   }
 
   @override
+  void dispose() {
+    _noticeTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final safeTop = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -105,6 +116,7 @@ class _RadioAppShellState extends State<RadioAppShell> {
                 needleColor: widget.needleColor,
                 showControls: widget.showControls,
                 powerOn: widget.powerOn,
+                isLoggedIn: widget.isLoggedIn,
                 onPrev: widget.onPrev == null
                     ? null
                     : () => _handlePrev(context),
@@ -117,7 +129,62 @@ class _RadioAppShellState extends State<RadioAppShell> {
               ),
             ),
           ),
+          Positioned(
+            left: 16,
+            right: 16,
+            top: safeTop + 6,
+            child: IgnorePointer(
+              ignoring: true,
+              child: AnimatedSlide(
+                offset:
+                    _powerOffNoticeVisible ? Offset.zero : const Offset(0, -0.6),
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: _powerOffNoticeVisible ? 1 : 0,
+                  duration: const Duration(milliseconds: 140),
+                  child: _PowerOffNotice(
+                    textStyle: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: const Color(0xFFF3E7D3)),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _PowerOffNotice extends StatelessWidget {
+  const _PowerOffNotice({this.textStyle});
+
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF2B2620),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Text(
+          '라디오의 전원이 켜지지 않았어요',
+          textAlign: TextAlign.center,
+          style: textStyle,
+        ),
       ),
     );
   }
@@ -136,6 +203,7 @@ class _RadioLayout extends StatelessWidget {
     required this.needleColor,
     required this.showControls,
     required this.powerOn,
+    required this.isLoggedIn,
     this.onPrev,
     this.onPower,
     this.onNext,
@@ -152,6 +220,7 @@ class _RadioLayout extends StatelessWidget {
   final Color? needleColor;
   final bool showControls;
   final bool powerOn;
+  final bool isLoggedIn;
   final VoidCallback? onPrev;
   final VoidCallback? onPower;
   final VoidCallback? onNext;
@@ -160,14 +229,29 @@ class _RadioLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        RadioTopIndicator(
-          indicatorLabel: indicatorLabel,
-          tabIndex: tabIndex,
-          indicatorLeftReserved: indicatorLeftReserved,
-          indicatorLabelPadding: indicatorLabelPadding,
-          enableIndicatorNudge: enableIndicatorNudge,
-          needlePositionOverride: needlePositionOverride,
-          needleColor: needleColor,
+        SizedBox(
+          height: RadioTone.indicatorOuterHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: RadioTone.bezelBase,
+              borderRadius: BorderRadius.circular(RadioTone.bezelRadius),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(RadioTone.bezelInnerPadding),
+              child: SizedBox(
+                height: RadioTone.indicatorInnerHeight,
+                child: RadioTopIndicator(
+                  indicatorLabel: indicatorLabel,
+                  tabIndex: tabIndex,
+                  indicatorLeftReserved: indicatorLeftReserved,
+                  indicatorLabelPadding: indicatorLabelPadding,
+                  enableIndicatorNudge: enableIndicatorNudge,
+                  needlePositionOverride: needlePositionOverride,
+                  needleColor: needleColor,
+                ),
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: RadioTone.betweenIndicatorAndBezel),
         Expanded(
@@ -188,6 +272,8 @@ class _RadioLayout extends StatelessWidget {
                         child: child,
                         tabViews: tabViews,
                         tabIndex: tabIndex,
+                        isPowerOn: powerOn,
+                        isLoggedIn: isLoggedIn,
                       ),
                     ),
                     if (showControls) ...[
@@ -268,15 +354,21 @@ class RadioContentViewport extends StatelessWidget {
     this.child,
     this.tabViews,
     required this.tabIndex,
+    required this.isPowerOn,
+    required this.isLoggedIn,
   });
 
   final Widget? child;
   final List<Widget>? tabViews;
   final int tabIndex;
+  final bool isPowerOn;
+  final bool isLoggedIn;
 
   @override
   Widget build(BuildContext context) {
     return SpeakerContentArea(
+      isPowerOn: isPowerOn,
+      isLoggedIn: isLoggedIn,
       child: _buildContent(),
     );
   }
@@ -331,8 +423,12 @@ class RadioTopIndicator extends StatelessWidget {
       label: indicatorLabel,
       needlePosition:
           needlePositionOverride ?? _needlePositionForTab(tabIndex),
-      leftReserved: indicatorLeftReserved,
-      labelPadding: indicatorLabelPadding,
+      leftSlotWidth: indicatorLeftReserved,
+      rightSlotWidth: RadioTone.indicatorRightSlot,
+      labelPaddingLeft: indicatorLabelPadding,
+      labelPaddingRight: RadioTone.indicatorLabelPadRight,
+      tickGap: RadioTone.indicatorTickGap,
+      tickPaddingLeft: RadioTone.indicatorTickPadLeft,
       tabIndex: tabIndex,
       enableNudge: enableIndicatorNudge,
       needleColor: needleColor,
@@ -425,6 +521,8 @@ class _ControlButton extends StatelessWidget {
         onTap: onTap,
         radius: size / 1.6,
         highlightColor: Colors.white.withOpacity(0.06),
+        containedInkWell: true,
+        customBorder: const CircleBorder(),
         child: Container(
           width: size,
           height: size,

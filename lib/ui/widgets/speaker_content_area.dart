@@ -6,9 +6,13 @@ class SpeakerContentArea extends StatelessWidget {
   const SpeakerContentArea({
     super.key,
     required this.child,
+    this.isPowerOn = false,
+    this.isLoggedIn = true,
   });
 
   final Widget child;
+  final bool isPowerOn;
+  final bool isLoggedIn;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +67,33 @@ class SpeakerContentArea extends StatelessWidget {
                 ),
               ),
             ),
+            if (isPowerOn && !isLoggedIn) ...[
+              const Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: ColoredBox(
+                    color: Color(0x26EADFCB),
+                  ),
+                ),
+              ),
+              const Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0x2EEADFCB),
+                          Color(0x12EADFCB),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             Positioned.fill(
               child: IgnorePointer(
                 ignoring: true,
@@ -85,7 +116,7 @@ class SpeakerContentArea extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(16),
               child: child,
             ),
           ],

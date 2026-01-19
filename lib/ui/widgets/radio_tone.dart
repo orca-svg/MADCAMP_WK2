@@ -23,6 +23,14 @@ class RadioTone {
       EdgeInsets.fromLTRB(16, 14, 16, 14);
   static const double betweenIndicatorAndBezel = 12.0;
   static const double bezelInnerPadding = 8.0;
+  static const double indicatorOuterHeight = 56.0;
+  static const double indicatorInnerHeight = 40.0;
+  static const double indicatorLeftSlot = 104.0;
+  static const double indicatorRightSlot = 64.0;
+  static const double indicatorLabelPadLeft = 18.0;
+  static const double indicatorLabelPadRight = 8.0;
+  static const double indicatorTickGap = 6.0;
+  static const double indicatorTickPadLeft = 4.0;
 
   static const double controlsHeight = 84.0;
   static const EdgeInsets controlsPadding =

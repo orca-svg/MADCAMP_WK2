@@ -21,7 +21,7 @@ class MyScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 10),
-        Text('내 라디오', style: theme.textTheme.headlineMedium),
+        Text('MY', style: theme.textTheme.headlineMedium),
         const SizedBox(height: 10),
         Text(
           '${authState.nickname ?? '리스너'} 님으로 로그인되어 있어요.',
@@ -35,7 +35,6 @@ class MyScreen extends ConsumerWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            SizedBox(width: 8),
             Expanded(
               child: _StatCard(
                 label: '내 사연',

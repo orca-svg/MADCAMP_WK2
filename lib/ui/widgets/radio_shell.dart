@@ -11,6 +11,8 @@ class RadioShell extends StatelessWidget {
     required this.indicatorLabel,
     this.tabIndex = 0,
     this.isLoginMode = false,
+    this.isPowerOn = false,
+    this.isLoggedIn = true,
     this.onPrev,
     this.onPower,
     this.onNext,
@@ -20,6 +22,8 @@ class RadioShell extends StatelessWidget {
   final String indicatorLabel;
   final int tabIndex;
   final bool isLoginMode;
+  final bool isPowerOn;
+  final bool isLoggedIn;
   final VoidCallback? onPrev;
   final VoidCallback? onPower;
   final VoidCallback? onNext;
@@ -74,13 +78,29 @@ class RadioShell extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          RetroIndicatorBar(
-                            label: indicatorLabel,
-                            needlePosition: isLoginMode
-                                ? 0.0
-                                : _needlePositionForTab(tabIndex),
-                            needleColor:
-                                isLoginMode ? Colors.grey : null,
+                          SizedBox(
+                            height: RadioTone.indicatorOuterHeight,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: RadioTone.bezelBase,
+                                borderRadius:
+                                    BorderRadius.circular(RadioTone.bezelRadius),
+                              ),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.all(RadioTone.bezelInnerPadding),
+                                child: SizedBox(
+                                  height: RadioTone.indicatorInnerHeight,
+                                  child: RetroIndicatorBar(
+                                    label: indicatorLabel,
+                                    needlePosition: isLoginMode
+                                        ? 0.0
+                                        : _needlePositionForTab(tabIndex),
+                                    needleColor: isLoginMode ? Colors.grey : null,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: RadioTone.betweenIndicatorAndBezel),
                           Expanded(
@@ -101,7 +121,11 @@ class RadioShell extends StatelessWidget {
                                 child: Column(
                                   children: [
                                     Expanded(
-                                      child: SpeakerContentArea(child: child),
+                                      child: SpeakerContentArea(
+                                        child: child,
+                                        isPowerOn: isPowerOn,
+                                        isLoggedIn: isLoggedIn,
+                                      ),
                                     ),
                                     if (!isLoginMode) ...[
                                       const SizedBox(height: 8),
@@ -240,6 +264,8 @@ class _ControlButton extends StatelessWidget {
         onTap: onTap,
         radius: size / 1.6,
         highlightColor: Colors.white.withOpacity(0.06),
+        containedInkWell: true,
+        customBorder: const CircleBorder(),
         child: Container(
           width: size,
           height: size,

@@ -53,26 +53,36 @@ class _PowerOffContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 10),
-        Text(
-          '라디오 전원이 꺼져 있어요.',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: RadioTone.textPrimary.withOpacity(0.92),
-            height: 1.38,
-          ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '라디오 전원이 꺼져 있어요.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+                color: RadioTone.textPrimary.withOpacity(0.92),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '전원을 눌러 오늘의 위로를 수신해 보세요.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+                color: RadioTone.textSecondary.withOpacity(0.82),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          '전원을 눌러 오늘의 위로를 수신해 보세요.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: RadioTone.textSecondary.withOpacity(0.82),
-            height: 1.38,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -93,6 +103,10 @@ class _PowerOnContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dateStamp = messageState.lastSeenDate;
+    final showBadge = messageState.hasSeenTodayMessage && dateStamp != null;
+    final formattedDate =
+        dateStamp == null ? '' : _formatDateDisplay(dateStamp);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -105,14 +119,16 @@ class _PowerOnContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Text(
-          '전원을 눌러 오늘의 위로를 한 번만 받아보세요.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: RadioTone.textSecondary.withOpacity(0.82),
-            height: 1.38,
+        if (showBadge) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _DateBadge(
+              dateText: formattedDate,
+              showSeen: messageState.isRepeat,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 12),
+        ],
         Text(
           messageState.message ?? '',
           style: theme.textTheme.titleLarge?.copyWith(
@@ -121,14 +137,6 @@ class _PowerOnContent extends StatelessWidget {
             fontFamily: _readableBodyFont,
           ),
         ),
-        const SizedBox(height: 12),
-        if (messageState.isRepeat)
-          Text(
-            '오늘 이미 받은 위로예요.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: RadioTone.textSecondary.withOpacity(0.8),
-            ),
-          ),
         if (messageState.hasTuned) ...[
           const SizedBox(height: 10),
           Row(
@@ -144,6 +152,59 @@ class _PowerOnContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class _DateBadge extends StatelessWidget {
+  const _DateBadge({
+    required this.dateText,
+    required this.showSeen,
+  });
+
+  final String dateText;
+  final bool showSeen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0x33171411),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            dateText,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xEBF2EBDD),
+            ),
+          ),
+          if (showSeen) ...[
+            const SizedBox(width: 8),
+            const Text(
+              '이미 확인한 문구에요.',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xD9D7CCB9),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _formatDateDisplay(String date) {
+  final parts = date.split('-');
+  if (parts.length != 3) return date;
+  return '${parts[0]}.${parts[1]}.${parts[2]}';
 }
 
 class _BookmarkButton extends StatefulWidget {
@@ -186,6 +247,8 @@ class _BookmarkButtonState extends State<_BookmarkButton> {
         child: InkResponse(
           onTap: widget.onTap == null ? null : _handleTap,
           radius: 28,
+          containedInkWell: true,
+          customBorder: const CircleBorder(),
           child: SizedBox(
             width: 44,
             height: 44,

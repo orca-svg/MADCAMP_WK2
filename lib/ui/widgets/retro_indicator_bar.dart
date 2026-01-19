@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'radio_tone.dart';
+
 class RetroIndicatorBar extends StatefulWidget {
   const RetroIndicatorBar({
     super.key,
     required this.label,
     required this.needlePosition,
     this.needleColor,
-    this.leftReserved = 86,
-    this.labelPadding = 14,
+    this.leftSlotWidth = RadioTone.indicatorLeftSlot,
+    this.rightSlotWidth = RadioTone.indicatorRightSlot,
+    this.labelPaddingLeft = RadioTone.indicatorLabelPadLeft,
+    this.labelPaddingRight = RadioTone.indicatorLabelPadRight,
+    this.tickGap = RadioTone.indicatorTickGap,
+    this.tickPaddingLeft = RadioTone.indicatorTickPadLeft,
     this.tabIndex = 0,
     this.enableNudge = true,
   });
@@ -16,8 +22,12 @@ class RetroIndicatorBar extends StatefulWidget {
   final String label;
   final double needlePosition;
   final Color? needleColor;
-  final double leftReserved;
-  final double labelPadding;
+  final double leftSlotWidth;
+  final double rightSlotWidth;
+  final double labelPaddingLeft;
+  final double labelPaddingRight;
+  final double tickGap;
+  final double tickPaddingLeft;
   final int tabIndex;
   final bool enableNudge;
 
@@ -79,34 +89,10 @@ class _RetroIndicatorBarState extends State<RetroIndicatorBar>
         );
       },
       child: Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        height: 40,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFE5E5E5),
-              Color(0xFFBEBEBE),
-              Color(0xFFEDEDED),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          image: const DecorationImage(
-            image: AssetImage('assets/textures/brushed_metal.png'),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Color(0x2EFFFFFF),
-              BlendMode.softLight,
-            ),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x40000000),
-              blurRadius: 18,
-              offset: Offset(0, 10),
-            ),
-          ],
+          color: const Color(0xFFBFBFBF),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Stack(
           children: [
@@ -116,41 +102,48 @@ class _RetroIndicatorBarState extends State<RetroIndicatorBar>
                 curve: Curves.easeInOutCubic,
                 tween: Tween<double>(end: widget.needlePosition.clamp(0.0, 1.0)),
                 builder: (context, value, _) {
+                  final leftReserved =
+                      widget.leftSlotWidth + widget.tickGap + widget.tickPaddingLeft;
                   return CustomPaint(
                     painter: _IndicatorPainter(
                       value,
-                      leftReserved: widget.leftReserved,
-                      rightReserved: 0,
+                      leftReserved: leftReserved,
+                      rightReserved: widget.rightSlotWidth,
                       needleColor: widget.needleColor,
                     ),
                   );
                 },
               ),
             ),
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: SizedBox(
-                width: widget.leftReserved,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: widget.labelPadding),
-                    child: Text(
-                      widget.label.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        color: Color(0xA6000000),
+            Row(
+              children: [
+                SizedBox(
+                  width: widget.leftSlotWidth,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: widget.labelPaddingLeft,
+                        right: widget.labelPaddingRight,
+                      ),
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                          color: Color(0xA6000000),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                SizedBox(width: widget.tickGap),
+                const Expanded(child: SizedBox()),
+                SizedBox(width: widget.rightSlotWidth),
+              ],
             ),
           ],
         ),

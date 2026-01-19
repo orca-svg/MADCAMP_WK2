@@ -66,6 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               modeParam == 'signup' ? AccessMode.signup : AccessMode.login;
           return Consumer(
             builder: (context, ref, _) {
+              final isLoggedIn = ref.watch(authProvider).isSignedIn;
               return RadioAppShell(
                 indicatorLabel: 'ACCESS',
                 tabIndex: _authIndexForLocation(state.uri.path),
@@ -73,9 +74,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                 enableIndicatorNudge: false,
                 needlePositionOverride: 0.0,
                 needleColor: const Color(0xFF9A9A9A),
-                onPower: () {
-                  final notifier = ref.read(powerStateProvider.notifier);
-                  notifier.state = !notifier.state;
+                isLoggedIn: isLoggedIn,
+                onPower: () async {
+                  await ref.read(powerStateProvider.notifier).toggle();
                 },
                 child: AccessScreen(mode: mode),
               );
@@ -87,9 +88,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) {
           final location = state.uri.path;
           final tabIndex = _tabIndexForLocation(location);
-          return Consumer(
+              return Consumer(
             builder: (context, ref, _) {
               final powerOn = ref.watch(powerStateProvider);
+              final isLoggedIn = ref.watch(authProvider).isSignedIn;
               final isOpenDetail = location.startsWith('/open/') &&
                   location != '/open';
               final contentOverride = isOpenDetail ? child : null;
@@ -97,21 +99,24 @@ final routerProvider = Provider<GoRouter>((ref) {
                 indicatorLabel: _tabs[tabIndex].label,
                 tabIndex: tabIndex,
                 powerOn: powerOn,
+                isLoggedIn: isLoggedIn,
                 tabViews: _tabViews,
                 child: contentOverride,
                 onPrev: () {
+                  ref.read(powerStateProvider.notifier).playTick();
                   final nextIndex =
                       (tabIndex - 1 + _tabs.length) % _tabs.length;
                   context.go(_tabs[nextIndex].path);
                 },
                 onNext: () {
+                  ref.read(powerStateProvider.notifier).playTick();
                   final nextIndex = (tabIndex + 1) % _tabs.length;
                   context.go(_tabs[nextIndex].path);
                 },
-                onPower: () {
+                onPower: () async {
                   final powerNotifier = ref.read(powerStateProvider.notifier);
-                  final nextState = !powerNotifier.state;
-                  powerNotifier.state = nextState;
+                  final nextState = await powerNotifier.toggle();
+                  if (nextState == null) return;
                   if (!location.startsWith('/home')) {
                     context.go('/home');
                   }
