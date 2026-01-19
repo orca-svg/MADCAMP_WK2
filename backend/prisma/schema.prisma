@@ -22,7 +22,7 @@ model User {
   name                String?
   image               String?
   
-  nickname            String
+  nickname            String?
   frequency           Float     @default(0)
   totalLikesReceived  Int       @default(0)
   totalCommentsSent   Int       @default(0)
@@ -35,8 +35,8 @@ model User {
 }
 
 model Session {
-  id            String
-  sessionToken  String    @id
+  id            String    @id @default(uuid())
+  sessionToken  String    @unique
   userId        String
   expires       DateTime
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
