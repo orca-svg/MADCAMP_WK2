@@ -43,3 +43,25 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# === Flutter (frontend) ===
+frontend/.dart_tool/
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+
+frontend/ios/Pods/
+frontend/ios/build/
+frontend/macos/Flutter/ephemeral/
+frontend/android/.gradle/
+
+# === Node/Nest (backend) ===
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/.env.*
+
+frontend/ios/Podfile.lock
+frontend/macos/Podfile.lock

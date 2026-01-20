@@ -234,7 +234,26 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                                             : const Text('Login'),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    // 로그인 카드 내, 설명 텍스트 다음 정도 위치에 추가
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      height: 52,
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: _isSubmitting ? null : () async {
+                                          setState(() => _isSubmitting = true);
+                                          await ref.read(authProvider.notifier).startGoogleLogin();
+                                          if (mounted) setState(() => _isSubmitting = false);
+                                        },
+                                        child: const Text('Google로 로그인'),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      '브라우저에서 로그인 후 앱으로 돌아옵니다.',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                    const SizedBox(height: 14),
                                     TextButton(
                                       onPressed: _isSubmitting
                                           ? null
