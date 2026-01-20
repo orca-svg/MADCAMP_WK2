@@ -28,22 +28,40 @@ export class AuthController {
       (isProd ? 'none' : 'lax');
 
     res.cookie(cookieName, sessionToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite,
-    expires: expiresAt,
-    path: '/',
-  });
+      httpOnly: true,
+      secure: isProd,
+      sameSite,
+      expires: expiresAt,
+      path: '/',
+    });
 
-  return res.redirect('https://reso-app.cloud');
-}
+    return res.redirect('https://reso-app.cloud');
+  }
 
-    @UseGuards(SessionAuthGuard)
-    @Get('me')
-    getMe(@Req() req: Request) {
-        return {
-            success: true,
-            user: req.user,
-        };
+  @Get('logout')
+  async logout(@Req() req: Request, @Res() res: Response) {
+    const cookieName = this.configService.get<string>('SESSION_COOKIE_NAME') ?? 'session';
+    const sessionToken = req.cookies?.[cookieName];
+
+    if (sessionToken) {
+      await this.authService.logout(sessionToken);
     }
+
+    res.clearCookie(cookieName, {
+      path: '/',
+      secure: this.configService.get('NODE_ENV') === 'production',
+      sameSite: this.configService.get('NODE_ENV') === 'production'? 'none' : 'lax',
+    });
+
+    return res.redirect('https://reso-app.cloud');
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('me')
+  getMe(@Req() req: Request) {
+      return {
+          success: true,
+          user: req.user,
+      };
+  }
 }

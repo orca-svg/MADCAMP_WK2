@@ -40,6 +40,16 @@ export class AuthService {
     };
   }
 
+  async logout(sessionToken: string) {
+    try {
+      await this.prisma.session.delete({
+        where: {sessionToken}
+      });
+    } catch (error) {
+      return;
+    }
+  }
+
   async validateSession(sessionToken: string) {
     if (!sessionToken) {
       return null;
