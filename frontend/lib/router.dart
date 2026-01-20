@@ -62,7 +62,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/access',
         builder: (context, state) {
-         
+          final modeParam = state.uri.queryParameters['mode'];
+          final mode =
+              modeParam == 'signup' ? AccessMode.signup : AccessMode.login;
           return Consumer(
             builder: (context, ref, _) {
               final isLoggedIn = ref.watch(authProvider).isSignedIn;
@@ -77,7 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 onPower: () async {
                   await ref.read(powerStateProvider.notifier).toggle();
                 },
-                child: AccessScreen(),
+                child: AccessScreen(mode: mode),
               );
             },
           );
