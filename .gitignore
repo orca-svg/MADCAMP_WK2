@@ -68,3 +68,5 @@ frontend/macos/Podfile.lock
 
 .env
 CLAUDE.md
+.CLAUDE
+.claude/*

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Body,
@@ -53,5 +54,12 @@ export class CommentsController {
   @ResponseMessage('좋아요 상태가 변경되었습니다.')
   toggleLike(@Req() req: any, @Param('id') commentId: string) {
     return this.commentsService.toggleLike(req.user.id, commentId);
+  }
+
+  @Patch(':id/adopt')
+  @ApiPostResponse(CommentEntity, 'Adopt a comment (one-way, one per story)')
+  @ResponseMessage('댓글이 채택되었습니다.')
+  adopt(@Req() req: any, @Param('id') commentId: string) {
+    return this.commentsService.adopt(req.user.id, commentId);
   }
 }

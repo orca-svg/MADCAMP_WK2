@@ -59,6 +59,75 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     await ref.read(commentsProvider(postId).notifier).add(text);
   }
 
+  Future<void> _showAdoptConfirmDialog(
+    BuildContext context,
+    String commentId,
+    CommentsController commentsCtrl,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2520),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '위로 채택',
+          style: TextStyle(
+            color: Color(0xFFF2EBDD),
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+          ),
+        ),
+        content: const Text(
+          '해당 위로를 채택하시겠습니까?\n채택은 취소할 수 없으며, 사연당 하나의 위로만 채택할 수 있습니다.',
+          style: TextStyle(
+            color: Color(0xCCD7CCB9),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              '취소',
+              style: TextStyle(color: Color(0x99D7CCB9)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              '채택',
+              style: TextStyle(
+                color: Color(0xFFF2EBDD),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await commentsCtrl.accept(commentId);
+        setState(() => _acceptedCommentId = commentId);
+      } catch (e) {
+        if (!mounted) return;
+        // Show error snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().contains('409')
+                  ? '이미 채택된 위로가 있습니다.'
+                  : '채택에 실패했습니다.',
+            ),
+            backgroundColor: const Color(0xFFE25B5B),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final postAsync = ref.watch(boardPostProvider(widget.postId));
@@ -197,11 +266,11 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                               onToggleLike: () =>
                                   commentsCtrl.toggleLike(comment.id),
                               onToggleAccept: acceptEnabled
-                                  ? () async {
-                                      setState(() =>
-                                          _acceptedCommentId = comment.id);
-                                      await commentsCtrl.accept(comment.id);
-                                    }
+                                  ? () => _showAdoptConfirmDialog(
+                                        context,
+                                        comment.id,
+                                        commentsCtrl,
+                                      )
                                   : null,
                             );
                           },

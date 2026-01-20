@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 
@@ -87,5 +87,60 @@ export class CommentsService {
     if (comment.userId !== userId) throw new ForbiddenException('No permission');
 
     return this.prisma.comment.delete({ where: { id } });
+  }
+
+  /**
+   * Adopt a comment (one-way, one per story)
+   * - Only story owner can adopt
+   * - A story can have at most ONE adopted comment
+   * - If already adopted, return success without changing
+   */
+  async adopt(userId: string, commentId: string) {
+    // 1. Fetch comment with its story
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { story: { select: { id: true, userId: true } } },
+    });
+    if (!comment) throw new NotFoundException('Comment not found');
+
+    // 2. Ownership check: only story owner can adopt
+    if (comment.story.userId !== userId) {
+      throw new ForbiddenException('Only the story owner can adopt a comment');
+    }
+
+    // 3. If this comment is already adopted, return success (idempotent)
+    if (comment.isBest) {
+      return {
+        id: comment.id,
+        content: comment.content,
+        isBest: comment.isBest,
+        likeCount: comment.likeCount,
+        createdAt: comment.createdAt,
+        adopted: true,
+      };
+    }
+
+    // 4. Scarcity check: does the story already have an adopted comment?
+    const existingAdopted = await this.prisma.comment.findFirst({
+      where: { storyId: comment.storyId, isBest: true },
+    });
+    if (existingAdopted) {
+      throw new ConflictException('This story already has an adopted comment');
+    }
+
+    // 5. Adopt: set isBest = true
+    const updated = await this.prisma.comment.update({
+      where: { id: commentId },
+      data: { isBest: true },
+    });
+
+    return {
+      id: updated.id,
+      content: updated.content,
+      isBest: updated.isBest,
+      likeCount: updated.likeCount,
+      createdAt: updated.createdAt,
+      adopted: true,
+    };
   }
 }

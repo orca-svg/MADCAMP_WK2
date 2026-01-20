@@ -202,7 +202,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     setState(() => _isTransmitting = true);
     _txController.stop();
     _txController.value = 0;
-    unawaited(_txController.forward());
+    final txAnimFuture = _txController.forward(from: 0);
 
     // 페이드 인이 눈에 보이도록 아주 짧게 대기
     await Future<void>.delayed(const Duration(milliseconds: _txFadeInMs));
@@ -227,7 +227,10 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
       if (!mounted) return;
     }
 
-    // ✅ 4) theater 진입
+    // ✅ 4) (핵심) 오버레이 애니메이션이 끝날 때까지 기다린 뒤 theater 진입
+    // 이렇게 해야 RadioAppShell/theater 레이어에 덮이기 전에 애니메이션이 확실히 보입니다.
+    await txAnimFuture;
+    if (!mounted) return;
     ref.read(theaterProvider.notifier).enter(pins: pins);
 
     // ✅ 5) 오버레이 상태 정리(살짝만 여유 후 끄기)

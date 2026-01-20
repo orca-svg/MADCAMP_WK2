@@ -3,27 +3,67 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    await prisma.advice.deleteMany();
+  // 기존 advice 전부 삭제
+  await prisma.advice.deleteMany();
 
-    const advicesData = [
-        { content: "advice 1", author: "author 1" },
-        { content: "advice 2", author: "author 2" },
-        { content: "advice 3", author: "author 3" },
-        { content: "advice 4", author: "author 4" }
-    ]
+  // seed data: author는 모두 "익명"
+  const contents = [
+    "오늘 버틴 것만으로도, 이미 충분히 잘하셨습니다.",
+    "내일이 있다는 사실 하나로, 오늘은 조금 가벼워져도 됩니다.",
+    "끝난 게 아니라, 잠깐 숨 고르는 중입니다.",
+    "당신의 속도는 느린 게 아니라, 당신에게 맞는 속도입니다.",
+    "“괜찮아질 거야”가 아니라, “괜찮아지게 할 거야”로 바꿔보세요",
+    "마음이 흔들려도 방향만 잃지 않으면 됩니다.",
+    "큰 결심보다 작은 반복이 인생을 바꿉니다.",
+    "걱정을 줄이고 웃음을 늘리면, 오늘의 무게가 달라집니다.",
+    "지금의 노력은 보이지 않아도, 어딘가에 분명히 쌓이고 있습니다.",
+    "하고 싶은 게 있다면, ‘허락’부터 스스로에게 주세요.",
+    "누군가의 기준이 아니라, 나의 기준으로 살아도 괜찮습니다.",
+    "넘어짐은 실패가 아니라, 배우는 방식 중 하나입니다.",
+    "정답을 찾느라 멈추지 말고, 일단 한 걸음만 내디뎌 보세요.",
+    "나를 믿는 순간, 가능성은 갑자기 넓어집니다.",
+    "오늘의 당신은 어제의 당신보다 조금 더 단단해졌습니다.",
+    "마음이 어두운 날엔, ‘새로운 해’가 더 가까이 있다는 뜻입니다.",
+    "작은 꿈도 꿈입니다—작다고 포기할 이유는 없습니다.",
+    "“할 수 있을까?” 대신 “해보자”라고 말해보세요.",
+    "당신이 주인공인 이야기는, 당신이 결정할 때 시작됩니다.",
+    "용기는 두려움이 없는 상태가 아니라, 두려움과 함께 움직이는 힘입니다.",
+    "꾸준함은 재능을 이기는 가장 조용한 능력입니다.",
+    "지금의 한 번의 시도는, 미래의 선택지를 늘려줍니다.",
+    "잠깐 멈춰도 됩니다—포기만 아니면 됩니다.",
+    "스스로를 깎아내리기엔, 당신은 너무 소중한 사람입니다.",
+    "오늘 힘들었다면, 내일은 ‘더 잘 지내는 법’을 하나 얻게 됩니다.",
+    "인생은 시험이 아니라 여정이라서, 오답도 경험이 됩니다.",
+    "마음속에 “나는 할 수 있다”를 한 번만 더 적어보세요.",
+    "당신이 빛나야 할 이유는, 남보다 앞서서가 아니라 ‘당신이라서’입니다.",
+    "강함은 버티는 얼굴이 아니라, 다시 일어나는 선택입니다.",
+    "이루어지길 바란다면, 먼저 스스로를 응원해 주세요.",
+    "“내 인생은 내 것”이라는 문장을 오늘 한 번 더 확인해요.",
+    "빠르게 달리는 날보다, 멈추지 않는 날이 더 멀리 갑니다.",
+    "기회는 완벽한 때가 아니라, 움직이는 사람에게 붙습니다.",
+    "잘하고 있어요—지금도, 이 순간에도요.",
+  ];
 
-    for (const item of advicesData) {
-        await prisma.advice.create({
-            data: item,
-        });
-    }
+  // 한 번에 insert (Prisma createMany 사용)
+  await prisma.advice.createMany({
+    data: contents.map((content) => ({
+      content,
+      author: '익명',
+    })),
+    // content가 unique라 중복될 수도 있으면 켜세요
+    skipDuplicates: true,
+  });
+
+  // 선택: 결과 확인 로그
+  const count = await prisma.advice.count();
+  console.log(`✅ Seeded advice: ${count} rows`);
 }
 
 main()
-    .catch((e) => {
-        console.error(e);
-        process.exit(1);
-    })
-    .finally(async() => {
-        await prisma.$disconnect();
-    });
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

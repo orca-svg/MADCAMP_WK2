@@ -83,15 +83,12 @@ class CommentsRepository {
     await _dio.post('/comments/$commentId/like');
   }
 
-  /// 댓글 채택 (백엔드에 별도 엔드포인트 없을 수 있음)
-  /// 향후 PATCH /comments/:id {isBest: true} 등으로 확장 필요
+  /// 댓글 채택: PATCH /comments/:id/adopt
+  /// - One-way (irreversible)
+  /// - Only story owner can adopt
+  /// - A story can have at most ONE adopted comment
+  /// Throws on error (403: not owner, 409: already has adopted comment)
   Future<void> acceptComment(String postId, String commentId) async {
-    // 백엔드에 accept 엔드포인트가 없으면 무시
-    // 추후 백엔드 구현 후 활성화
-    try {
-      await _dio.patch('/comments/$commentId', data: {'isBest': true});
-    } catch (_) {
-      // endpoint 없을 경우 무시 (프론트에서만 표시)
-    }
+    await _dio.patch('/comments/$commentId/adopt');
   }
 }
