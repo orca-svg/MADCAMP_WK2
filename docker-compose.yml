@@ -1,5 +1,5 @@
 services:
-  db: 
+  db:
     image: pgvector/pgvector:pg16
     container_name: radio-app-db
     restart: always
@@ -24,6 +24,19 @@ services:
       - db
     restart: always
 
+  studio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: prisma-studio
+    working_dir: /app
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5555:5555"
+    command: npx prisma studio --port 5555 --hostname 0.0.0.0 --browser none
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
-  
