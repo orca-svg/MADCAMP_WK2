@@ -32,6 +32,8 @@ model User {
   stories             Story[]
   comments            Comment[]
   sessions            Session[]
+  storyLikes          StoryLike[]
+  commentLikes        CommentLike[]
 }
 
 model Session {
@@ -75,11 +77,13 @@ model Story {
   content   String   @db.Text
   isPublic  Boolean  @default(true)
   embedding Unsupported("vector(1536)")?
+  likeCount Int       @default(0)
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   tags      Tag[]    @relation("StoryToTag")
+  likes     StoryLike[]
 
   createdAt DateTime @default(now())
 
@@ -106,10 +110,40 @@ model Comment {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
   
+  likes     CommentLike[]
+
   createdAt DateTime  @default(now())
 
   @@index([storyId])
   @@index([userId])
   @@index([createdAt])
   @@index([storyId, createdAt])
+}
+
+model StoryLike {
+  id          String    @id @default(uuid())
+  userId      String
+  storyId     String
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story       Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, storyId])
+  @@index([storyId])
+  @@index([userId])
+}
+
+model CommentLike {
+  id          String    @id @default(uuid())
+  userId      String
+  commentId   String
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment     Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+  @@index([userId])
 }

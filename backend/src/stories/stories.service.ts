@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { UpdateStoryDto } from './dto/update-story.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class StoriesService {
@@ -39,25 +40,82 @@ export class StoriesService {
     };
   }
 
-  findAll() {
-    return this.prisma.story.findMany({ 
+  async toggleLike(userId: string, storyId: string) {
+    const existingLike = await this.prisma.storyLike.findUnique({
+      where: {
+        userId_storyId: { userId, storyId }
+      }
+    });
+
+        if (existingLike) {
+      await this.prisma.$transaction([
+        this.prisma.storyLike.delete({ where: { id: existingLike.id } }),
+        this.prisma.story.update({
+          where: { id: storyId },
+          data: { likeCount: { decrement: 1 } }
+        })
+      ]);
+      return { liked: false };
+    } else {
+        await this.prisma.$transaction([
+          this.prisma.storyLike.create({ data: { userId, storyId } }),
+          this.prisma.story.update({
+            where: { id: storyId },
+            data: { likeCount: { increment: 1 } }
+          })
+        ]);
+      return { liked: true };
+    }
+  }
+
+  async findAll(userId?: string) {
+    const stories = await this.prisma.story.findMany({ 
       where: { isPublic: true },
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { nickname: true } },
-        tags: true
+        tags: true,
+        likes: userId ? { where: { userId }, take: 1 } : false,
       }
+    });
+
+    return stories.map(story => {
+      const { likes, ...rest } = story;
+      return {
+        ...rest,
+        isLiked: !!(likes && likes.length > 0),
+      };
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.story.findUnique({ 
+  async findOne(id: string, userId?: string) {
+    const story = await this.prisma.story.findUnique({
       where: { id },
       include: {
-        comments: true,
-        tags: true
+        user: { select: { nickname: true, image: true } },
+        tags: true,
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { nickname: true } } }
+        },
+        
+        likes: userId ? {
+          where: { userId },
+          take: 1
+        } : false,
       },
     });
+
+  if (!story) {
+    throw new NotFoundException('Story not found');
+  }
+
+  const { likes, ...rest } = story;
+  
+  return {
+    ...rest,
+    isLiked: !!(likes && likes.length > 0),
+  };
   }
 
   update(id: string, updateStoryDto: UpdateStoryDto) {

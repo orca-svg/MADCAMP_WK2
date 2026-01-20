@@ -31,19 +31,64 @@ export class CommentsService {
     });
   }
 
-  async findAll(storyId: string) {
+  async toggleLike(userId: string, commentId: string) {
+    const existingLike = await this.prisma.commentLike.findUnique({
+      where: {
+        userId_commentId: { userId, commentId }
+      }
+    });
+
+    if (existingLike) {
+      await this.prisma.$transaction([
+        this.prisma.commentLike.delete({ where: { id: existingLike.id } }),
+        this.prisma.comment.update({
+          where: { id: commentId },
+          data: { likeCount: { decrement: 1 } }
+        })
+      ]);
+      return { liked: false };
+    } else {
+        await this.prisma.$transaction([
+          this.prisma.commentLike.create({ data: { userId, commentId } }),
+          this.prisma.comment.update({
+            where: { id: commentId },
+            data: { likeCount: { increment: 1 } }
+          })
+        ]);
+      return { liked: true };
+    }
+  }
+
+  async findAll(storyId: string, userId?: string) {
     const story = await this.prisma.story.findUnique({ where: { id: storyId } });
     if (!story) {
       throw new NotFoundException('Story not found');
     }
 
-    return this.prisma.comment.findMany({
+    const comments = await this.prisma.comment.findMany({
       where: { storyId },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { nickname: true } },
+        user: { select: { nickname: true, image: true } },
+        _count: {
+          select: { likes: true },
+        },
+        likes: userId
+          ? {
+            where: { userId },
+            take: 1,
+          }
+          : false,
       },
     });
+
+    return comments.map((comment) => {
+      const { likes, ...rest } = comment;
+      return {
+        ...rest,
+        isLiked: likes && likes.length > 0,
+      };
+    }); 
   }
 
   async remove(id: string) {

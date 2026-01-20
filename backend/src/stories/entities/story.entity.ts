@@ -14,6 +14,9 @@ export class StoryEntity implements Story {
     @ApiProperty({ description: '사연 공개 여부', example: true })
     isPublic!: boolean;
 
+    @ApiProperty({ description: 'Like count', example: 0 })
+    likeCount!: number;
+
     @ApiProperty({ description: '사연 작성자 ID', example: '1234'})
     userId!: string;
 
