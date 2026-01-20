@@ -124,7 +124,7 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
       );
     }
 
-    final currentUserId = authState.username ?? '';
+    final currentUserId = authState.userIdLikeKey;
     _ensureInitialized(post, currentUserId);
     final isPostOwner = currentUserId.isNotEmpty &&
         post.authorId != null &&

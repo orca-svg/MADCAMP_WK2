@@ -23,7 +23,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     final myPosts = ref.watch(myPostsProvider);
     final bookmarks = ref.watch(bookmarksProvider);
     final theme = Theme.of(context);
-    final nickname = authState.nickname ?? 'Guest';
+    final nickname = authState.displayName;
     final myPostsCount = myPosts.length;
     final acceptedCount =
         myPosts.where((post) => post.acceptedCommentId != null).length;

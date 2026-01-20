@@ -1,12 +1,11 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../data/data_client.dart';
+import '../data/api_client.dart'; // ✅ 변경
 import 'prefs_provider.dart';
 
 class AuthState {
@@ -28,6 +27,18 @@ class AuthState {
         user: null,
         sessionToken: null,
       );
+
+  String get displayName {
+    final u = user;
+    if (u == null) return 'Guest';
+    return (u['nickname'] ?? u['name'] ?? u['email'] ?? 'Guest').toString();
+  }
+
+  String get userIdLikeKey {
+    final u = user;
+    if (u == null) return '';
+    return (u['id'] ?? u['email'] ?? '').toString();
+  }
 
   AuthState copyWith({
     bool? isSignedIn,
@@ -55,7 +66,6 @@ class AuthController extends StateNotifier<AuthState> {
 
   StreamSubscription<Uri>? _sub;
 
-  // ✅ 앱 시작 시: (1) 딥링크 리스너 (2) 기존 세션 검증
   Future<void> _init() async {
     _listenDeepLinks();
     await refreshSession();
@@ -64,7 +74,6 @@ class AuthController extends StateNotifier<AuthState> {
   void _listenDeepLinks() {
     final appLinks = AppLinks();
 
-    // 초기 링크(앱이 죽어있다가 딥링크로 켜진 경우)
     appLinks.getInitialLink().then((uri) {
       if (uri != null) _handleAuthLink(uri);
     });
@@ -75,10 +84,10 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> startGoogleLogin() async {
-    // ✅ 백엔드 OAuth 시작 URL
     final url = Uri.parse('${_client.dio.options.baseUrl}/auth/google');
 
     state = state.copyWith(isLoading: true);
+
     final ok = await launchUrl(
       url,
       mode: LaunchMode.externalApplication,
@@ -90,7 +99,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> _handleAuthLink(Uri uri) async {
-    // 예: madcamp2://auth?sessionToken=xxxxx
+    // madcamp2://auth?sessionToken=...
     if (uri.scheme != 'madcamp2') return;
     if (uri.host != 'auth') return;
 
@@ -104,7 +113,6 @@ class AuthController extends StateNotifier<AuthState> {
 
     if (token == null || token.isEmpty) return;
 
-    // ✅ sessionToken 저장 → /auth/me로 검증
     await _client.saveSessionToken(token);
     await refreshSession();
   }
@@ -121,20 +129,25 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final me = await _client.getMe();
       final success = me['success'] == true;
+
       if (!success) {
+        // 토큰 제거
         await _prefs.remove('session_token');
         state = AuthState.signedOut();
         return;
       }
 
+      final user = (me['user'] is Map<String, dynamic>)
+          ? (me['user'] as Map<String, dynamic>)
+          : null;
+
       state = AuthState(
         isSignedIn: true,
         isLoading: false,
-        user: (me['user'] is Map<String, dynamic>) ? (me['user'] as Map<String, dynamic>) : null,
+        user: user,
         sessionToken: token,
       );
-    } catch (e) {
-      // 서버 접근 실패(오프라인 등)일 수도 있으니 바로 로그아웃하지 않고 signedOut 처리
+    } catch (_) {
       state = AuthState.signedOut();
     }
   }
