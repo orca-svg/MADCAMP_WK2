@@ -28,6 +28,12 @@ class _MyScreenState extends ConsumerState<MyScreen> {
       }
     });
     final authState = ref.watch(authProvider);
+    if (!_didLoadMine && authState.isSignedIn && !authState.isLoading) {
+      _didLoadMine = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(boardControllerProvider.notifier).refreshMine();
+      });
+    }
     final myPosts = ref.watch(myPostsProvider);
     final bookmarks = ref.watch(bookmarksProvider);
     final theme = Theme.of(context);
