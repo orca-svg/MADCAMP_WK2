@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' show lerpDouble;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,10 +28,15 @@ const _tagOptions = [
   '#그냥_들어줘 🎧',
 ];
 
-/// ✅ 송신 오버레이가 "충분히" 보이도록 하는 타이밍 세트
-const _txTotalDuration = Duration(milliseconds: 2100);
-const _txFadeInMs = 260; // 처음 등장
-const _txMinShowMs = 1350; // 최소 체류(이 시간 전에는 theater로 안 넘어감)
+/// ✅ 송신 오버레이 타이밍 (MVP spec: 3 pulses @ 650ms each)
+const _txPulseIntervalMs = 650; // 각 펄스 간격
+const _txPulseCount = 3; // 펄스 횟수
+const _txFadeOutMs = 450; // 페이드아웃 시간
+const _txTotalDuration = Duration(
+  milliseconds: _txPulseIntervalMs * _txPulseCount + _txFadeOutMs, // 2400ms
+);
+const _txFadeInMs = 200; // 처음 등장
+const _txMinShowMs = _txPulseIntervalMs * _txPulseCount; // 1950ms 최소 체류
 const _txAfterEnterDelayMs = 120; // theater enter 직후 오버레이 정리 딜레이
 
 class TuneScreen extends ConsumerStatefulWidget {
@@ -56,6 +62,13 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
   // ✅ 리플/페이드 진행 컨트롤러
   late final AnimationController _txController;
 
+  // ✅ 오디오 플레이어 (radio_click.wav 3회 재생)
+  late final AudioPlayer _audioPlayer;
+  final List<Timer> _audioTimers = [];
+
+  // ✅ Full-screen overlay entry (covers entire screen including shell)
+  OverlayEntry? _overlayEntry;
+
   @override
   void initState() {
     super.initState();
@@ -63,14 +76,37 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
       vsync: this,
       duration: _txTotalDuration,
     );
+    _audioPlayer = AudioPlayer();
+    _audioPlayer.setSource(AssetSource('audio/radio_click.wav'));
   }
 
   @override
   void dispose() {
+    _removeOverlay();
+    for (final t in _audioTimers) {
+      t.cancel();
+    }
+    _audioPlayer.dispose();
     _txController.dispose();
     _titleController.dispose();
     _storyController.dispose();
     super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showFullScreenOverlay() {
+    _removeOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _TransmitOverlay(
+        controller: _txController,
+        text: '주파수를 송신 중입니다.',
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   bool _canShowTagSnack() {
@@ -185,6 +221,26 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     );
   }
 
+  /// 송신 오디오 3회 재생 스케줄링 (t=0, 650, 1300ms)
+  void _scheduleTransmitAudio() {
+    // 기존 타이머 취소
+    for (final t in _audioTimers) {
+      t.cancel();
+    }
+    _audioTimers.clear();
+
+    for (int i = 0; i < _txPulseCount; i++) {
+      final delay = Duration(milliseconds: _txPulseIntervalMs * i);
+      final timer = Timer(delay, () {
+        if (!mounted || !_isTransmitting) return;
+        _audioPlayer.stop();
+        _audioPlayer.seek(Duration.zero);
+        _audioPlayer.resume();
+      });
+      _audioTimers.add(timer);
+    }
+  }
+
   Future<void> _send() async {
     if (_isTransmitting) return;
 
@@ -198,28 +254,35 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
 
     final startedAt = DateTime.now();
 
-    // ✅ 1) 송신 오버레이 시작 (페이드 인 충분히 보이게)
+    // ✅ 1) 송신 오버레이 시작 + 오디오 스케줄 (FULL SCREEN via OverlayEntry)
     setState(() => _isTransmitting = true);
     _txController.stop();
     _txController.value = 0;
+    _showFullScreenOverlay();
+    _scheduleTransmitAudio();
     final txAnimFuture = _txController.forward(from: 0);
 
     // 페이드 인이 눈에 보이도록 아주 짧게 대기
     await Future<void>.delayed(const Duration(milliseconds: _txFadeInMs));
     if (!mounted) return;
 
-    // ✅ 2) 데이터 처리/핀 생성 (기능 유지)
-    final post = await ref.read(boardControllerProvider.notifier).submitStory(
-          title: _titleController.text.trim(),
-          body: story,
-          tags: List<String>.from(_selectedTags),
-          publish: _publishToBoard,
-        );
+    // ✅ 2) 데이터 처리/핀 생성 - API 호출 with error handling
+    BoardPost? post;
+    bool apiSuccess = false;
+    try {
+      post = await ref.read(boardControllerProvider.notifier).submitStory(
+            title: _titleController.text.trim(),
+            body: story,
+            tags: List<String>.from(_selectedTags),
+            publish: _publishToBoard,
+          );
+      apiSuccess = true;
+    } catch (e) {
+      // API 실패 시 로그 (디버그용)
+      debugPrint('submitStory failed: $e');
+    }
 
-    final allPosts = ref.read(boardControllerProvider).openPosts;
-    final pins = _buildPins(allPosts, _publishToBoard ? post : null);
-
-    // ✅ 3) 오버레이 최소 체류 시간 보장 (여기가 "너무 빨리 전환" 문제의 핵심 해결)
+    // ✅ 3) 오버레이 최소 체류 시간 보장 (애니메이션은 에러와 무관하게 완주)
     final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
     final remainMs = (_txMinShowMs - elapsedMs).clamp(0, _txMinShowMs);
     if (remainMs > 0) {
@@ -227,17 +290,31 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
       if (!mounted) return;
     }
 
-    // ✅ 4) (핵심) 오버레이 애니메이션이 끝날 때까지 기다린 뒤 theater 진입
-    // 이렇게 해야 RadioAppShell/theater 레이어에 덮이기 전에 애니메이션이 확실히 보입니다.
+    // ✅ 4) 오버레이 애니메이션 완료 대기
     await txAnimFuture;
     if (!mounted) return;
-    ref.read(theaterProvider.notifier).enter(pins: pins);
 
-    // ✅ 5) 오버레이 상태 정리(살짝만 여유 후 끄기)
+    // ✅ 5) 결과에 따라 분기
+    if (apiSuccess && post != null) {
+      // 성공: theater 진입
+      final allPosts = ref.read(boardControllerProvider).openPosts;
+      final pins = _buildPins(allPosts, _publishToBoard ? post : null);
+      ref.read(theaterProvider.notifier).enter(pins: pins);
+    } else {
+      // 실패: 스낵바 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('전송에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
+    }
+
+    // ✅ 6) 오버레이 상태 정리
     await Future<void>.delayed(
       const Duration(milliseconds: _txAfterEnterDelayMs),
     );
     if (!mounted) return;
+    _removeOverlay();
     setState(() => _isTransmitting = false);
   }
 
@@ -246,40 +323,27 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     final theme = Theme.of(context);
     final theaterActive = ref.watch(theaterProvider).isActive;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // ✅ 작성 패널(기존 화면)
-        IgnorePointer(
-          ignoring: theaterActive || _isTransmitting,
-          child: AnimatedOpacity(
-            opacity: (theaterActive || _isTransmitting) ? 0 : 1,
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-            child: _ComposePanel(
-              theme: theme,
-              titleController: _titleController,
-              storyController: _storyController,
-              publishToBoard: _publishToBoard,
-              onPublishChanged: (value) {
-                setState(() => _publishToBoard = value);
-              },
-              selectedTags: _selectedTags,
-              onOpenTagSelector: _openTagSelectorSheet,
-              onSend: _send,
-            ),
-          ),
+    // ✅ 오버레이는 OverlayEntry로 전체 화면 위에 표시됨 (build에서 제거)
+    // IgnorePointer + AnimatedOpacity로 송신 중 입력 차단
+    return IgnorePointer(
+      ignoring: theaterActive || _isTransmitting,
+      child: AnimatedOpacity(
+        opacity: (theaterActive || _isTransmitting) ? 0 : 1,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        child: _ComposePanel(
+          theme: theme,
+          titleController: _titleController,
+          storyController: _storyController,
+          publishToBoard: _publishToBoard,
+          onPublishChanged: (value) {
+            setState(() => _publishToBoard = value);
+          },
+          selectedTags: _selectedTags,
+          onOpenTagSelector: _openTagSelectorSheet,
+          onSend: _send,
         ),
-
-        // ✅ 송수신 오버레이(검은 화면 + 중앙 문구 + 물결)
-        if (_isTransmitting)
-          Positioned.fill(
-            child: _TransmitOverlay(
-              controller: _txController,
-              text: '주파수를 송신 중입니다.',
-            ),
-          ),
-      ],
+      ),
     );
   }
 
@@ -330,13 +394,6 @@ class _TransmitOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 페이드: In → Hold → Out
-    final opacity = CurvedAnimation(
-      parent: controller,
-      curve: const Interval(0.00, 0.18, curve: Curves.easeOut),
-      reverseCurve: const Interval(0.82, 1.00, curve: Curves.easeIn),
-    );
-
     // Interval로 "유지" 구간을 만들기 위해 TweenSequence 사용
     final holdOpacity = TweenSequence<double>([
       TweenSequenceItem(
@@ -352,19 +409,25 @@ class _TransmitOverlay extends StatelessWidget {
       ),
     ]).animate(controller);
 
-    return FadeTransition(
-      opacity: holdOpacity,
-      child: ColoredBox(
-        color: Colors.black.withOpacity(0.92),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                _RippleWaves(progress: controller),
-                _TransmitTextCard(text: text),
-              ],
+    // ✅ Positioned.fill + Material for full-screen overlay above everything
+    return Positioned.fill(
+      child: Material(
+        type: MaterialType.transparency,
+        child: FadeTransition(
+          opacity: holdOpacity,
+          child: Container(
+            color: const Color(0xEB000000), // ~92% black
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    _RippleWaves(progress: controller),
+                    _TransmitTextCard(text: text),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

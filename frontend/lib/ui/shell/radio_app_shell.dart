@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +65,17 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   List<StarPin> _cachedTheaterPins = const [];
   bool _restoreTheaterScheduled = false;
 
+  // ✅ Audio player for theater reception sound
+  late final AudioPlayer _sparklePlayer;
+
+  @override
+  void initState() {
+    super.initState();
+    _sparklePlayer = AudioPlayer();
+    _sparklePlayer.setSource(AssetSource('audio/receive_sparkle.wav'));
+    _sparklePlayer.setVolume(0.5);
+  }
+
 
   bool _canShowPowerOffSnack() {
     final last =
@@ -105,6 +117,7 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   @override
   void dispose() {
     _noticeTimer?.cancel();
+    _sparklePlayer.dispose();
     super.dispose();
   }
 
@@ -141,6 +154,12 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
       _lastPinTapAt = null;
       _lastPinId = null;
       _closeBubble();
+      // ✅ Play sparkle sound when theater becomes active (reception starts)
+      if (theater.isActive && !_wasTheaterActive) {
+        _sparklePlayer.stop();
+        _sparklePlayer.seek(Duration.zero);
+        _sparklePlayer.resume();
+      }
       _wasTheaterActive = theater.isActive;
     }
     return Scaffold(
