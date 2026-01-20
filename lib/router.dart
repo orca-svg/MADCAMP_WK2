@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
 import 'providers/daily_message_provider.dart';
 import 'providers/power_provider.dart';
+import 'providers/theater_provider.dart';
 import 'ui/screens/access_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/my_detail_screen.dart';
@@ -165,7 +166,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: ':id',
                 builder: (context, state) {
                   final id = state.pathParameters['id'] ?? '';
-                  return OpenDetailScreen(postId: id);
+                  return PopScope(
+                    onPopInvoked: (didPop) {
+                      if (!didPop) return;
+                      // ✅ 뒤로가기/돌아가기 시 theater 복귀
+                      ref.read(theaterProvider.notifier).resume();
+                      },
+                   child: OpenDetailScreen(postId: id),
+                  );
                 },
               ),
             ],

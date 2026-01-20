@@ -44,8 +44,10 @@ class TheaterController extends StateNotifier<TheaterState> {
   TheaterController() : super(const TheaterState());
 
   final Random _random = Random();
+  List<StarPin> _cachedPins = const [];
 
   void enter({required List<StarPin> pins}) {
+    _cachedPins = List<StarPin>.unmodifiable(pins);
     state = TheaterState(isActive: true, pins: pins, selectedPin: null);
   }
 
@@ -53,6 +55,10 @@ class TheaterController extends StateNotifier<TheaterState> {
     state = const TheaterState();
   }
 
+  void resume() {
+    if (_cachedPins.isEmpty) return;
+    state = TheaterState(isActive: true, pins: _cachedPins, selectedPin: null);
+ }
   void selectPin(StarPin? pin) {
     state = state.copyWith(selectedPin: pin);
   }

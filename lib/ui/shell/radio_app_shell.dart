@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../widgets/radio_tone.dart';
 import '../widgets/retro_indicator_bar.dart';
 import '../widgets/speaker_content_area.dart';
-import '../screens/open_detail_screen.dart';
 import '../../providers/theater_provider.dart';
 
 class RadioAppShell extends ConsumerStatefulWidget {
@@ -234,11 +233,13 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
           _showMissingDetailSheet(context);
           return;
         }
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => OpenDetailScreen(postId: pin.id),
-          ),
-        );
+        // ✅ theater 모드에서는 Shell이 child를 안 그리므로, 상세로 가기 전 theater를 끕니다.
+        controller.exit();
+        // ✅ exit로 프레임이 한번 돈 뒤에 push하는 게 안정적입니다.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          context.push('/open/${pin.id}?from=theater');
+        });
         return;
       }
     }
@@ -303,6 +304,7 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   }
 
   void _showBubble(BuildContext context, StarPin pin) {
+    final shellContext = context; // ✅ overlay builder context 대신 이걸 사용
     _closeBubble();
     final link = _starLinks[pin.id];
     if (link == null) return;
@@ -311,6 +313,8 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
     final overlay = Overlay.of(context);
     if (overlay == null) return;
     _bubbleStarId = pin.id;
+    final navContext = this.context; // ✅ Overlay context 말고 State context를 캡처
+    final theaterController = ref.read(theaterProvider.notifier); // ✅ 여기서 컨트롤러 캡처
     final screen = MediaQuery.of(context).size;
     const bubbleW = 220.0;
     const bubbleH = 140.0;
@@ -352,11 +356,11 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
                       _closeBubble();
                       return;
                     }
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => OpenDetailScreen(postId: pin.id),
-                      ),
-                    );
+                    ref.read(theaterProvider.notifier).exit();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      shellContext.push('/open/${pin.id}?from=theater');
+                    });
                   },
                   child: _StarBubble(pin: pin),
                 ),
@@ -370,22 +374,61 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   }
 
   Offset _bubbleOffsetFor(
-    Offset starOffset,
-    Size screen,
-    double bubbleW,
-    double bubbleH,
-    Rect miniRect,
-  ) {
-    var dx = starOffset.dx - 160.0;
-    var dy = starOffset.dy - 120.0;
-    dx = dx.clamp(12.0, screen.width - bubbleW - 12);
-    dy = dy.clamp(12.0, screen.height - bubbleH - 12);
-    final bubbleBottom = dy + bubbleH;
-    if (bubbleBottom > miniRect.top - 8) {
-      dy = miniRect.top - bubbleH - 12;
-    }
-    return Offset(dx - starOffset.dx, dy - starOffset.dy);
+  Offset starOffset,
+  Size screen,
+  double bubbleW,
+  double bubbleH,
+  Rect miniRect,
+) {
+  const margin = 12.0;
+
+  // 화면을 기준으로 별의 위치를 분류
+  final isLeft = starOffset.dx < screen.width * 0.33;
+  final isRight = starOffset.dx > screen.width * 0.67;
+  final isTop = starOffset.dy < screen.height * 0.28;
+  final isBottom = starOffset.dy > screen.height * 0.72;
+
+  // 기본: 별 "위"에 말풍선(중앙 정렬)
+  double dx = -bubbleW / 2;
+  double dy = -bubbleH - 12;
+
+  // 좌측이면 → 오른쪽에
+  if (isLeft) {
+    dx = 16;
+    dy = -bubbleH / 2;
   }
+
+  // 우측이면 → 왼쪽에
+  if (isRight) {
+    dx = -bubbleW - 16;
+    dy = -bubbleH / 2;
+  }
+
+  // 상단이면 → 아래에
+  if (isTop) {
+    dx = -bubbleW / 2;
+    dy = 16;
+  }
+
+  // 하단이면 → 위에(기본과 비슷하지만 좀 더 여유)
+  if (isBottom) {
+    dx = -bubbleW / 2;
+    dy = -bubbleH - 16;
+  }
+
+  // 1) 화면 안으로 clamp (absolute 기준)
+  final absX = (starOffset.dx + dx).clamp(margin, screen.width - bubbleW - margin);
+  final absY = (starOffset.dy + dy).clamp(margin, screen.height - bubbleH - margin);
+
+  // 2) mini radio 영역과 겹치면 위로 올리기
+  final bubbleBottom = absY + bubbleH;
+  if (bubbleBottom > miniRect.top - 8) {
+    final newAbsY = (miniRect.top - bubbleH - 12).clamp(margin, screen.height - bubbleH - margin);
+    return Offset(absX - starOffset.dx, newAbsY - starOffset.dy);
+  }
+
+  return Offset(absX - starOffset.dx, absY - starOffset.dy);
+}
 
   void _closeBubble() {
     _bubbleEntry?.remove();
@@ -535,77 +578,172 @@ class _TheaterMiniRadio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const outerRadius = 12.0;
+    const borderW = 1.0;
+    const inset = 1.0;
     const width = 220.0;
     const height = 72.0;
-    return ClipRRect(
+
+    final innerRadius = outerRadius - inset;
+
+return ClipRRect(
+  borderRadius: BorderRadius.circular(outerRadius),
+  child: Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      // ✅ 검정 비침 방지(인셋 영역 채우기)
+      color: const Color(0xFFF2EBDD),
       borderRadius: BorderRadius.circular(outerRadius),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(outerRadius),
-          border: Border.all(
-            color: const Color(0xFFD7CCB9).withOpacity(0.95),
-            width: 1,
-          ),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/textures/wood_grain.png'),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Column(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: _MiniIndicator(label: label),
-                    ),
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 82,
-                      child: _MiniSpeakerBlank(),
-                    ),
-                  ],
+      border: Border.all(
+        color: const Color(0xFFD7CCB9).withOpacity(0.95),
+        width: borderW,
+      ),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(inset),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(innerRadius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1) wood + 내용
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/textures/wood_grain.png'),
+                  fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(height: 3),
-              Expanded(
-                flex: 1,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    IgnorePointer(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _MiniControlButton(icon: Icons.chevron_left),
-                          SizedBox(width: 6),
-                          _MiniControlButton(
-                            icon: Icons.power_settings_new,
-                            isPower: true,
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(flex: 6, child: _MiniIndicator(label: label)),
+                        const SizedBox(width: 8),
+                        const Expanded(flex: 8, child: _MiniSpeakerBlank()),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 6,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: const IgnorePointer(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _MiniControlButton(icon: Icons.chevron_left),
+                                    SizedBox(width: 6),
+                                    _MiniControlButton(
+                                      icon: Icons.power_settings_new,
+                                      isPower: true,
+                                    ),
+                                    SizedBox(width: 6),
+                                    _MiniControlButton(icon: Icons.chevron_right),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                          SizedBox(width: 6),
-                          _MiniControlButton(icon: Icons.chevron_right),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(flex: 8, child: SizedBox()),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+
+            // 2) ✅ 우측-하단 "비네팅" (우하단에 그늘이 몰리게)
+            //    - 중심을 bottomRight로 두고, 우하단으로 갈수록 어두워짐
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.bottomRight,
+                      radius: 1.05,
+                      colors: [
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.12),
+                        Colors.black.withOpacity(0.26),
+                      ],
+                      stops: const [0.0, 0.55, 0.78, 1.0],
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // 3) ✅ 하이라이트도 반영: 좌상단에서 빛이 들어오는 느낌
+            //    - topLeft에 밝은 광택, 중앙으로 갈수록 사라짐
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.topLeft,
+                      radius: 0.95,
+                      colors: [
+                        Colors.white.withOpacity(0.16),
+                        Colors.white.withOpacity(0.06),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.35, 0.70],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // 4) ✅ 안쪽 림 하이라이트(마감선)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(innerRadius),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.10),
+                      width: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // (선택) ✅ 우하단 림 살짝 더 눌러서 깊이감 강화하고 싶으면 추가
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(innerRadius),
+                    border: Border.all(
+                      color: Colors.black.withOpacity(0.06),
+                      width: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _MiniIndicator extends StatelessWidget {
@@ -632,14 +770,14 @@ class _MiniIndicator extends StatelessWidget {
               color: Color(0xFFF2EBDD),
             ),
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           SizedBox(
             height: 6,
             child: Stack(
               children: [
                 Row(
                   children: [
-                    for (int i = 0; i < 6; i++) ...[
+                    for (int i = 0; i < 8; i++) ...[
                       Container(
                         width: 2,
                         height: 6,
@@ -648,17 +786,17 @@ class _MiniIndicator extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                       ),
-                      if (i != 5) const SizedBox(width: 2),
+                      if (i != 7) const SizedBox(width: 3),
                     ],
                     const SizedBox(width: 6),
                   ],
                 ),
                 Positioned(
                   top: 0,
-                  right: 0,
+                  left: 14,
                   child: Container(
                     width: 2,
-                    height: 6,
+                    height: 8,
                     decoration: BoxDecoration(
                       color: const Color(0xFFE53935),
                       borderRadius: BorderRadius.circular(2),

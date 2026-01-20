@@ -20,8 +20,7 @@ class HomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final messageId = messageState.messageId;
-    final isBookmarked =
-        messageId != null && bookmarks.contains(messageId);
+    final isBookmarked = messageId != null && bookmarks.contains(messageId);
 
     return IndexedStack(
       index: powerOn ? 1 : 0,
@@ -37,9 +36,7 @@ class HomeScreen extends ConsumerWidget {
           isBookmarked: isBookmarked,
           onToggleBookmark: messageId == null
               ? null
-              : () => ref
-                  .read(bookmarksProvider.notifier)
-                  .toggle(messageId),
+              : () => ref.read(bookmarksProvider.notifier).toggle(messageId),
         ),
       ],
     );
@@ -103,69 +100,83 @@ class _PowerOnContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showSeenInfo =
-        messageState.isRepeat && messageState.firstCheckTime != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    // ✅ 항상 날짜를 표시해야 하므로, firstCheckTime이 없으면 오늘 날짜 사용
+    final sentAt = messageState.firstCheckTime ?? DateTime.now();
+
+    return Stack(
       children: [
-        const SizedBox(height: 10),
-        Text(
-          '오늘의 위로 메시지',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: RadioTone.textPrimary.withOpacity(0.92),
-            height: 1.38,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: Center(
-            child: Text(
-              messageState.message ?? '',
-              textAlign: TextAlign.center,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                height: 1.25,
+        // 본문
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 10),
+            Text(
+              '오늘의 위로 메시지',
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: RadioTone.textPrimary.withOpacity(0.92),
-                fontFamily: _readableBodyFont,
+                height: 1.38,
               ),
             ),
-          ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Center(
+                child: Text(
+                  messageState.message ?? '',
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1.25,
+                    color: RadioTone.textPrimary.withOpacity(0.92),
+                    fontFamily: _readableBodyFont,
+                  ),
+                ),
+              ),
+            ),
+
+            // ✅ 북마크는 "글 위로 바로 아래" 위치에 항상 표시
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _BookmarkButton(
+                  isActive: isBookmarked,
+                  onTap: onToggleBookmark,
+                ),
+              ],
+            ),
+
+            // ✅ Stack의 bottom-right 텍스트가 겹치지 않도록 바닥 여백 확보
+            const SizedBox(height: 26),
+          ],
         ),
-        if (showSeenInfo) ...[
-          const SizedBox(height: 10),
-          Text(
-            '${_formatTime(messageState.firstCheckTime!)}에 이미 확인한 문구에요.',
+
+        // ✅ 날짜 문구: 우측 아래에 항상 표시
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Text(
+            '${_formatDate(sentAt)}에 송신된 오늘의 문구에요.',
+            textAlign: TextAlign.right,
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: const Color(0xFFD7CCB9).withOpacity(0.70),
             ),
           ),
-        ],
-        if (messageState.hasTuned) ...[
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _BookmarkButton(
-                isActive: isBookmarked,
-                onTap: onToggleBookmark,
-              ),
-            ],
-          ),
-        ],
+        ),
       ],
     );
   }
 }
 
-String _formatTime(DateTime time) {
-  final hour = time.hour.toString().padLeft(2, '0');
-  final minute = time.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
+String _formatDate(DateTime time) {
+  final y = time.year.toString();
+  final m = time.month.toString().padLeft(2, '0');
+  final d = time.day.toString().padLeft(2, '0');
+  return '$y.$m.$d';
 }
 
 class _BookmarkButton extends StatefulWidget {

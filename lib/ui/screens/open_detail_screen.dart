@@ -141,7 +141,13 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () => context.go('/open'),
+                  onTap: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/open');
+                    }
+                  },
                   customBorder: const StadiumBorder(),
                   child: Ink(
                     height: 28,
