@@ -16,9 +16,17 @@ class MyScreen extends ConsumerStatefulWidget {
 
 class _MyScreenState extends ConsumerState<MyScreen> {
   bool _loggingOut = false;
+  bool _didLoadMine = false;
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (_didLoadMine) return;
+      if (next.isSignedIn && !next.isLoading) {
+        _didLoadMine = true;
+        ref.read(boardControllerProvider.notifier).refreshMine();
+      }
+    });
     final authState = ref.watch(authProvider);
     final myPosts = ref.watch(myPostsProvider);
     final bookmarks = ref.watch(bookmarksProvider);
