@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { UpdateStoryDto } from './dto/update-story.dto';
-import { Emotion } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -9,21 +8,18 @@ export class StoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, createStoryDto: CreateStoryDto) {
-    const { title, content, isPublic, emotion } = createStoryDto;
-
-    let finalEmotion = emotion;
-    if (!finalEmotion) {
-      const emotions = Object.values(Emotion);
-      finalEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-    }
+    const { tagNames, ...storyData } = createStoryDto;
 
     const myStory = await this.prisma.story.create({
       data: {
-        userId: userId,
-        title: title,
-        content: content,
-        isPublic: isPublic ?? false,
-        emotion: finalEmotion,
+        ...storyData,
+        userId,
+        tags: {
+          connectOrCreate: tagNames?.map((name) => ({
+            where: { name },
+            create: { name }
+          })),
+        }
       }
     });
 
@@ -31,8 +27,7 @@ export class StoriesService {
     const similarStories = await this.prisma.$queryRaw`
       SELECT id, title, content, emotion, "createdAt"
       FROM "Story"
-      WHERE emotion = ${finalEmotion}::"Emotion"
-      AND "isPublic" = true
+      WHERE "isPublic" = true
       AND id != ${myStory.id}
       ORDER BY RANDOM()
       LIMIT 5
@@ -49,7 +44,8 @@ export class StoriesService {
       where: { isPublic: true },
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { nickname: true } }
+        user: { select: { nickname: true } },
+        tags: true
       }
     });
   }
@@ -59,6 +55,7 @@ export class StoriesService {
       where: { id },
       include: {
         comments: true,
+        tags: true
       },
     });
   }

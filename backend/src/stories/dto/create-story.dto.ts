@@ -1,6 +1,5 @@
-import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsEnum, IsArray, ArrayMaxSize } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Emotion } from '@prisma/client';
 
 export class CreateStoryDto {
     @ApiProperty({ 
@@ -29,12 +28,11 @@ export class CreateStoryDto {
     isPublic?: boolean;
 
     @ApiProperty({
-        description: 'Emotion associated with the story',
-        enum: Emotion,
-        example: Emotion.SAD,
-        required: false
+        description: '사연 태그'
     })
-    @IsEnum(Emotion)
+    @IsArray()
+    @IsString({ each: true })
+    @ArrayMaxSize(3, { message: '태그는 최대 3개까지만 선택할 수 있습니다. '})
     @IsOptional()
-    emotion?: Emotion;
+    tagNames?: string[];
 } 

@@ -47,7 +47,7 @@ model Session {
 
 model Advice {
   id        String    @id @default(uuid()) // Primary Key
-  content   String
+  content   String    @db.Text
   author    String?
 
   bookmarks Bookmark[]
@@ -72,13 +72,14 @@ model Bookmark {
 model Story {
   id        String   @id @default(uuid()) // Primary Key
   title     String
-  content   String
+  content   String   @db.Text
   isPublic  Boolean  @default(true)
-  emotion   Emotion?
   embedding Unsupported("vector(1536)")?
 
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags      Tag[]    @relation("StoryToTag")
 
   createdAt DateTime @default(now())
 
@@ -88,9 +89,15 @@ model Story {
   @@index([isPublic, createdAt])
 }
 
+model Tag {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  stories   Story[]   @relation("StoryToTag")
+}
+
 model Comment {
   id        String    @id @default(uuid()) // Primary Key
-  content   String
+  content   String    @db.Text
   isBest    Boolean   @default(false)
   likeCount Int       @default(0)
   storyId   String
@@ -105,14 +112,4 @@ model Comment {
   @@index([userId])
   @@index([createdAt])
   @@index([storyId, createdAt])
-}
-
-enum Emotion {
-  HAPPY
-  SAD
-  ANGRY
-  ANXIOUS
-  WEARY
-  HOPEFUL
-  NEUTRAL
 }
