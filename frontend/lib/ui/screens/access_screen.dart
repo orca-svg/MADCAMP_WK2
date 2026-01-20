@@ -61,7 +61,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
     final title = widget.mode == AccessMode.signup ? '시작하기' : '로그인';
     final subtitle = widget.mode == AccessMode.signup
         ? 'Google 계정으로 시작하면 계정이 자동으로 생성됩니다.'
-        : 'Google 계정으로 로그인 후 앱으로 돌아옵니다.';
+        : 'Google 계정으로 로그인 후 \n앱으로 돌아옵니다.';
 
     return LayoutBuilder(
       builder: (context, constraints) {
