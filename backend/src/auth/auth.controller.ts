@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 
 @Controller('auth')
@@ -36,4 +37,13 @@ export class AuthController {
 
   return res.redirect('https://reso-app.cloud');
 }
+
+    @UseGuards(SessionAuthGuard)
+    @Get('me')
+    getMe(@Req() req: Request) {
+        return {
+            success: true,
+            user: req.user,
+        };
+    }
 }
