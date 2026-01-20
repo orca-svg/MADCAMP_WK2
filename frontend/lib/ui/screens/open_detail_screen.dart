@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/board_repository.dart';
+import '../../data/comments_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/board_provider.dart';
+import '../../providers/comments_provider.dart';
 
 const _readableBodyFont = 'ChosunCentennial';
 
@@ -19,7 +21,6 @@ class OpenDetailScreen extends ConsumerStatefulWidget {
 
 class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
-  final List<_CommentState> _comments = [];
   String? _acceptedCommentId;
   bool _postLiked = false;
   int _postLikeCount = 0;
@@ -38,221 +39,191 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     _postLiked =
         currentUserId.isNotEmpty && post.likedUserIds.contains(currentUserId);
     _acceptedCommentId = post.acceptedCommentId;
-    _comments
-      ..clear()
-      ..addAll(_seedComments(currentUserId));
   }
 
-  List<_CommentState> _seedComments(String currentUserId) {
-    return [
-      _CommentState(
-        id: 'c1',
-        text: '파도처럼 숨 쉬어도 괜찮아요. 오늘은 천천히 가요.',
-        likedUserIds:
-            currentUserId.isNotEmpty ? [currentUserId] : const [],
-        likeCount: currentUserId.isNotEmpty ? 1 : 0,
-        isLiked: currentUserId.isNotEmpty,
-      ),
-      _CommentState(
-        id: 'c2',
-        text: '응원하고 있어요. 지금도 충분히 잘하고 있어요.',
-        likedUserIds: const [],
-        likeCount: 0,
-        isLiked: false,
-      ),
-    ];
-  }
-
-  void _togglePostLike() {
+  Future<void> _togglePostLike(String postId) async {
+    // optimistic UI
     setState(() {
       _postLiked = !_postLiked;
-      if (_postLiked) {
-        _postLikeCount += 1;
-      } else if (_postLikeCount > 0) {
-        _postLikeCount -= 1;
-      }
+      _postLikeCount += _postLiked ? 1 : -1;
+      if (_postLikeCount < 0) _postLikeCount = 0;
     });
+    await ref.read(boardControllerProvider.notifier).togglePostLike(postId);
   }
 
-  void _toggleCommentLike(_CommentState comment) {
-    setState(() {
-      comment.isLiked = !comment.isLiked;
-      if (comment.isLiked) {
-        comment.likeCount += 1;
-      } else if (comment.likeCount > 0) {
-        comment.likeCount -= 1;
-      }
-    });
-  }
-
-  void _toggleAcceptComment(_CommentState comment) {
-    setState(() {
-      if (_acceptedCommentId != comment.id) {
-        _acceptedCommentId = comment.id;
-      }
-    });
-  }
-
-  void _submitComment() {
+  Future<void> _submitComment(String postId) async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      _comments.insert(
-        0,
-        _CommentState(
-          id: 'c_${DateTime.now().millisecondsSinceEpoch}',
-          text: text,
-        ),
-      );
-    });
     _commentController.clear();
     FocusScope.of(context).unfocus();
+    await ref.read(commentsProvider(postId).notifier).add(text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final post = ref.watch(boardPostProvider(widget.postId));
+    final postAsync = ref.watch(boardPostProvider(widget.postId));
+    final commentsState = ref.watch(commentsProvider(widget.postId));
+    final commentsCtrl = ref.read(commentsProvider(widget.postId).notifier);
     final authState = ref.watch(authProvider);
     final theme = Theme.of(context);
 
-    if (post == null) {
-      return Center(
+    return postAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
         child: Text(
-          '주파수를 찾을 수 없어요.',
+          '주파수를 불러올 수 없어요: $e',
           style: theme.textTheme.titleMedium,
         ),
-      );
-    }
+      ),
+      data: (post) {
+        if (post == null) {
+          return Center(
+            child: Text(
+              '주파수를 찾을 수 없어요.',
+              style: theme.textTheme.titleMedium,
+            ),
+          );
+        }
 
-    final currentUserId = authState.userIdLikeKey;
-    _ensureInitialized(post, currentUserId);
-    final isPostOwner = currentUserId.isNotEmpty &&
-        post.authorId != null &&
-        post.authorId == currentUserId;
+        final currentUserId = authState.userIdLikeKey;
+        _ensureInitialized(post, currentUserId);
+        final isPostOwner = currentUserId.isNotEmpty &&
+            post.authorId != null &&
+            post.authorId == currentUserId;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/open');
-                    }
-                  },
-                  customBorder: const StadiumBorder(),
-                  child: Ink(
-                    height: 28,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0x24171411),
-                      borderRadius: BorderRadius.circular(14),
-                      border:
-                          Border.all(color: const Color(0x2ED7CCB9), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chevron_left,
-                          size: 18,
-                          color: const Color(0xFFD7CCB9).withOpacity(0.85),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/open');
+                        }
+                      },
+                      customBorder: const StadiumBorder(),
+                      child: Ink(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0x24171411),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: const Color(0x2ED7CCB9), width: 1),
                         ),
-                        Text(
-                          '목록으로',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFD7CCB9).withOpacity(0.90),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chevron_left,
+                              size: 18,
+                              color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
+                            ),
+                            Text(
+                              '목록으로',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFD7CCB9).withValues(alpha: 0.90),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    post.title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontFamily: _readableBodyFont,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (post.tags.isNotEmpty) ...[
+                    _TagRow(tags: post.tags),
+                    const SizedBox(height: 8),
+                  ],
+                  Text(
+                    _formatTime(post.createdAt),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: _readableBodyFont,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                post.title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontFamily: _readableBodyFont,
-                ),
-              ),
-              const SizedBox(height: 10),
-              if (post.tags.isNotEmpty) ...[
-                _TagRow(tags: post.tags),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                _formatTime(post.createdAt),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontFamily: _readableBodyFont,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    final ordered = _orderedComments();
-                    final acceptEnabled =
-                        isPostOwner && _acceptedCommentId == null;
-                    return ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      itemCount: ordered.length + 1,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return _PostDetailCard(
-                            body: post.body,
-                            isLiked: _postLiked,
-                            likeCount: _postLikeCount,
-                            onToggleLike: _togglePostLike,
-                          );
-                        }
-                        final comment = ordered[index - 1];
-                        final isAccepted =
-                            comment.id == _acceptedCommentId;
-                        return _CommentCard(
-                          comment: comment,
-                          isAccepted: isAccepted,
-                          isPostOwner: isPostOwner,
-                          onToggleLike: () => _toggleCommentLike(comment),
-                          onToggleAccept: acceptEnabled
-                              ? () => _toggleAcceptComment(comment)
-                              : null,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        final comments = commentsState.items;
+                        final ordered =
+                            _orderedComments(comments, _acceptedCommentId);
+                        final acceptEnabled =
+                            isPostOwner && _acceptedCommentId == null;
+                        return ListView.separated(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          itemCount: ordered.length + 1,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return _PostDetailCard(
+                                body: post.body,
+                                isLiked: _postLiked,
+                                likeCount: _postLikeCount,
+                                onToggleLike: () => _togglePostLike(post.id),
+                              );
+                            }
+                            final comment = ordered[index - 1];
+                            final isAccepted =
+                                comment.id == _acceptedCommentId;
+                            return _CommentCard(
+                              comment: comment,
+                              isAccepted: isAccepted,
+                              isPostOwner: isPostOwner,
+                              onToggleLike: () =>
+                                  commentsCtrl.toggleLike(comment.id),
+                              onToggleAccept: acceptEnabled
+                                  ? () async {
+                                      setState(() =>
+                                          _acceptedCommentId = comment.id);
+                                      await commentsCtrl.accept(comment.id);
+                                    }
+                                  : null,
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: _CommentInputBar(
+                      controller: _commentController,
+                      onSend: () => _submitComment(post.id),
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: _CommentInputBar(
-                  controller: _commentController,
-                  onSend: _submitComment,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -264,11 +235,11 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     return '$month/$day $hour:$minute';
   }
 
-  List<_CommentState> _orderedComments() {
-    if (_acceptedCommentId == null) return List<_CommentState>.from(_comments);
-    final ordered = List<_CommentState>.from(_comments);
-    final index =
-        ordered.indexWhere((comment) => comment.id == _acceptedCommentId);
+  List<CommentItem> _orderedComments(
+      List<CommentItem> comments, String? acceptedId) {
+    if (acceptedId == null) return List<CommentItem>.from(comments);
+    final ordered = List<CommentItem>.from(comments);
+    final index = ordered.indexWhere((comment) => comment.id == acceptedId);
     if (index <= 0) return ordered;
     final accepted = ordered.removeAt(index);
     ordered.insert(0, accepted);
@@ -294,7 +265,7 @@ class _PostDetailCard extends StatelessWidget {
     final theme = Theme.of(context);
     final iconColor = isLiked
         ? const Color(0xFFE25B5B)
-        : const Color(0xFFD7CCB9).withOpacity(0.80);
+        : const Color(0xFFD7CCB9).withValues(alpha: 0.80);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
       padding: const EdgeInsets.all(10),
@@ -335,7 +306,7 @@ class _PostDetailCard extends StatelessWidget {
                   likeCount.toString(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: 12,
-                    color: const Color(0xFFD7CCB9).withOpacity(0.75),
+                    color: const Color(0xFFD7CCB9).withValues(alpha: 0.75),
                   ),
                 ),
                 const Spacer(),
@@ -357,7 +328,7 @@ class _CommentCard extends StatelessWidget {
     required this.onToggleAccept,
   });
 
-  final _CommentState comment;
+  final CommentItem comment;
   final bool isAccepted;
   final bool isPostOwner;
   final VoidCallback onToggleLike;
@@ -365,16 +336,14 @@ class _CommentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final likeIcon =
-        comment.isLiked ? Icons.favorite : Icons.favorite_border;
+    final likeIcon = comment.isLiked ? Icons.favorite : Icons.favorite_border;
     final likeColor = comment.isLiked
         ? const Color(0xFFE25B5B)
-        : const Color(0xFFD7CCB9).withOpacity(0.80);
-    final acceptIcon =
-        isAccepted ? Icons.verified : Icons.verified_outlined;
+        : const Color(0xFFD7CCB9).withValues(alpha: 0.80);
+    final acceptIcon = isAccepted ? Icons.verified : Icons.verified_outlined;
     final acceptColor = isAccepted
-        ? const Color(0xFFF2EBDD).withOpacity(0.95)
-        : const Color(0xFFD7CCB9).withOpacity(0.70);
+        ? const Color(0xFFF2EBDD).withValues(alpha: 0.95)
+        : const Color(0xFFD7CCB9).withValues(alpha: 0.70);
 
     return Stack(
       children: [
@@ -460,7 +429,7 @@ class _CommentCard extends StatelessWidget {
                   Icon(
                     Icons.verified,
                     size: 14,
-                    color: const Color(0xFFF2EBDD).withOpacity(0.92),
+                    color: const Color(0xFFF2EBDD).withValues(alpha: 0.92),
                   ),
                   const SizedBox(width: 4),
                   const Text(
@@ -531,7 +500,7 @@ class _CommentInputBar extends StatelessWidget {
               icon: Icon(
                 Icons.send,
                 size: 18,
-                color: const Color(0xFFD7CCB9).withOpacity(0.85),
+                color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
               ),
               padding: EdgeInsets.zero,
               splashRadius: 22,
@@ -588,27 +557,11 @@ class _TagChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFFD7CCB9).withOpacity(0.92),
+            color: const Color(0xFFD7CCB9).withValues(alpha: 0.92),
             fontFamily: _readableBodyFont,
           ),
         ),
       ),
     );
   }
-}
-
-class _CommentState {
-  _CommentState({
-    required this.id,
-    required this.text,
-    this.likedUserIds = const [],
-    this.isLiked = false,
-    this.likeCount = 0,
-  });
-
-  final String id;
-  final String text;
-  final List<String> likedUserIds;
-  bool isLiked;
-  int likeCount;
 }

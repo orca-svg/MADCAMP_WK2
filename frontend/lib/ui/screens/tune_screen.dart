@@ -209,7 +209,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     if (!mounted) return;
 
     // ✅ 2) 데이터 처리/핀 생성 (기능 유지)
-    final post = ref.read(boardControllerProvider.notifier).submitStory(
+    final post = await ref.read(boardControllerProvider.notifier).submitStory(
           title: _titleController.text.trim(),
           body: story,
           tags: List<String>.from(_selectedTags),

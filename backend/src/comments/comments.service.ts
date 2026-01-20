@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCommentDto } from './dto/create-comment.dto';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateCommentDto } from './dto/create-comment.dto';
 
 @Injectable()
 export class CommentsService {
@@ -9,93 +9,82 @@ export class CommentsService {
   async create(userId: string, createCommentDto: CreateCommentDto) {
     const { storyId, content } = createCommentDto;
 
-    const [user, story] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: userId } }),
-      this.prisma.story.findUnique({ where: { id: storyId } }),
-    ]);
+    const story = await this.prisma.story.findUnique({ where: { id: storyId } });
+    if (!story) throw new NotFoundException('Story not found');
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!story) {
-      throw new NotFoundException('Story not found');
-    }
-
-    return this.prisma.comment.create({
-      data: {
-        userId,
-        storyId,
-        content,
-      },
+    const created = await this.prisma.comment.create({
+      data: { userId, storyId, content },
+      include: { user: { select: { id: true, nickname: true, image: true } } },
     });
+
+    return {
+      id: created.id,
+      content: created.content,
+      isBest: created.isBest,
+      likeCount: created.likeCount,
+      createdAt: created.createdAt,
+      user: created.user,
+      isLiked: false,
+    };
   }
 
   async toggleLike(userId: string, commentId: string) {
+    const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException('Comment not found');
+
     const existingLike = await this.prisma.commentLike.findUnique({
-      where: {
-        userId_commentId: { userId, commentId }
-      }
+      where: { userId_commentId: { userId, commentId } },
     });
 
     if (existingLike) {
-      await this.prisma.$transaction([
+      const [, updated] = await this.prisma.$transaction([
         this.prisma.commentLike.delete({ where: { id: existingLike.id } }),
         this.prisma.comment.update({
           where: { id: commentId },
-          data: { likeCount: { decrement: 1 } }
-        })
+          data: { likeCount: { decrement: 1 } },
+        }),
       ]);
-      return { liked: false };
-    } else {
-        await this.prisma.$transaction([
-          this.prisma.commentLike.create({ data: { userId, commentId } }),
-          this.prisma.comment.update({
-            where: { id: commentId },
-            data: { likeCount: { increment: 1 } }
-          })
-        ]);
-      return { liked: true };
+      return { liked: false, likeCount: updated.likeCount };
     }
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.commentLike.create({ data: { userId, commentId } }),
+      this.prisma.comment.update({
+        where: { id: commentId },
+        data: { likeCount: { increment: 1 } },
+      }),
+    ]);
+    return { liked: true, likeCount: updated.likeCount };
   }
 
-  async findAll(storyId: string, userId?: string) {
+  async findAll(storyId: string, userId: string) {
     const story = await this.prisma.story.findUnique({ where: { id: storyId } });
-    if (!story) {
-      throw new NotFoundException('Story not found');
-    }
+    if (!story) throw new NotFoundException('Story not found');
 
     const comments = await this.prisma.comment.findMany({
       where: { storyId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ isBest: 'desc' }, { createdAt: 'desc' }], // ✅ best 먼저
       include: {
-        user: { select: { nickname: true, image: true } },
-        _count: {
-          select: { likes: true },
-        },
-        likes: userId
-          ? {
-            where: { userId },
-            take: 1,
-          }
-          : false,
+        user: { select: { id: true, nickname: true, image: true } },
+        likes: { where: { userId }, take: 1 },
       },
     });
 
-    return comments.map((comment) => {
-      const { likes, ...rest } = comment;
-      return {
-        ...rest,
-        isLiked: likes && likes.length > 0,
-      };
-    }); 
+    return comments.map((c) => ({
+      id: c.id,
+      content: c.content,
+      isBest: c.isBest,
+      likeCount: c.likeCount,
+      createdAt: c.createdAt,
+      user: c.user,
+      isLiked: c.likes.length > 0,
+    }));
   }
 
-  async remove(id: string) {
+  async remove(userId: string, id: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
+    if (!comment) throw new NotFoundException('Comment not found');
+    if (comment.userId !== userId) throw new ForbiddenException('No permission');
 
     return this.prisma.comment.delete({ where: { id } });
   }

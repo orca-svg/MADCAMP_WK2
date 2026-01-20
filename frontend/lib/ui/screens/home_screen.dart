@@ -20,7 +20,8 @@ class HomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     final messageId = messageState.messageId;
-    final isBookmarked = messageId != null && bookmarks.contains(messageId);
+    final messageIdStr = messageId?.toString();
+    final isBookmarked = messageIdStr != null && bookmarks.contains(messageIdStr);
 
     return IndexedStack(
       index: powerOn ? 1 : 0,
@@ -34,9 +35,9 @@ class HomeScreen extends ConsumerWidget {
           theme: theme,
           messageState: messageState,
           isBookmarked: isBookmarked,
-          onToggleBookmark: messageId == null
+          onToggleBookmark: messageIdStr == null
               ? null
-              : () => ref.read(bookmarksProvider.notifier).toggle(messageId),
+              : () => ref.read(bookmarksProvider.notifier).toggle(messageIdStr),
         ),
       ],
     );
