@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'providers/prefs_provider.dart';
 import 'router.dart';
@@ -8,8 +9,8 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   final prefs = await SharedPreferences.getInstance();
-
   runApp(
     ProviderScope(
       overrides: [
@@ -29,8 +30,12 @@ class RadioApp extends ConsumerWidget {
 
     final baseTheme = RadioAppTheme.theme;
     final appTheme = baseTheme.copyWith(
-      textTheme: baseTheme.textTheme.apply(fontFamily: 'Hakgyoansim'),
-      primaryTextTheme: baseTheme.primaryTextTheme.apply(fontFamily: 'Hakgyoansim'),
+      textTheme: baseTheme.textTheme.apply(
+       fontFamily: 'Hakgyoansim',
+      ),
+      primaryTextTheme: baseTheme.primaryTextTheme.apply(
+        fontFamily: 'Hakgyoansim',
+      ),
     );
 
     return MaterialApp.router(

@@ -52,13 +52,16 @@ class TheaterController extends StateNotifier<TheaterState> {
   }
 
   void exit() {
-    state = const TheaterState();
+    state = state.copyWith(isActive: false, selectedPin: null);
   }
 
+  // ✅ 상세에서 pop으로 돌아올 때 theater 복귀
   void resume() {
-    if (_cachedPins.isEmpty) return;
-    state = TheaterState(isActive: true, pins: _cachedPins, selectedPin: null);
- }
+    if (state.pins.isEmpty) return; // pins 없으면 복귀할 게 없음
+    state = state.copyWith(isActive: true, selectedPin: null);
+  }
+
+
   void selectPin(StarPin? pin) {
     state = state.copyWith(selectedPin: pin);
   }

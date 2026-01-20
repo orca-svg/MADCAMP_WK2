@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 
 import '../../providers/auth_provider.dart';
 import '../../providers/power_provider.dart';
+
 
 enum AccessMode { login, signup }
 
@@ -97,7 +100,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                       const SizedBox(height: 18),
 
                       // ✅ 통상적인 Google Sign-in 버튼
-                      _GoogleSignInButton(
+                      GoogleSignInButton(
                         enabled: !busy,
                         isLoading: busy,
                         onPressed: _startGoogleLogin,
@@ -141,63 +144,82 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
   }
 }
 
-class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({
-    required this.enabled,
-    required this.isLoading,
+class GoogleSignInButton extends StatelessWidget {
+  const GoogleSignInButton({
+    super.key,
     required this.onPressed,
+    this.enabled = true,
+    this.isLoading = false,
+    this.text = 'Google로 계속하기',
   });
 
+  final VoidCallback onPressed;
   final bool enabled;
   final bool isLoading;
-  final VoidCallback onPressed;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    // “표준” 느낌: 흰색 배경 + 얇은 테두리 + G 로고 + 검정 텍스트
-    final bg = Colors.white;
-    final fg = const Color(0xFF1F1F1F);
-    final border = const Color(0xFFDADCE0);
-
     return SizedBox(
-      height: 52,
-      child: OutlinedButton(
-        onPressed: enabled ? onPressed : null,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          side: BorderSide(color: border, width: 1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2.4),
-              )
-            : Row(
+      height: 48,
+      width: double.infinity,
+      child: Material(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          onTap: (!enabled || isLoading) ? null : onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: const Color(0xFF747775),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  _GoogleGMark(),
-                  SizedBox(width: 10),
-                  Text(
-                    'Sign in with Google',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.1,
+                children: [
+                  if (isLoading) ...[
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                  ] else ...[
+                    Image.asset(
+                      'assets/images/google_g.png',
+                      width: 18,
+                      height: 18,
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Opacity(
+                    opacity: enabled ? 1.0 : 0.5,
+                    child: Text(
+                      isLoading ? '로그인 중...' : text,
+                      style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        height: 20 / 14,
+                        color: Color(0xFF1F1F1F),
+                      ),
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Google "G" 마크를 SVG 없이 “가장 가벼운 방식”으로 구현:
-/// - 원형 흰 배경 위에 "G" 글자를 올려 브랜드 느낌을 냅니다.
-/// - 실제 멀티컬러 G 로고를 쓰고 싶으면 assets로 png/svg 추가 후 Image.asset로 교체하세요.
 class _GoogleGMark extends StatelessWidget {
   const _GoogleGMark();
 

@@ -41,6 +41,8 @@ dependencies:
   dio: ^5.7.0
   url_launcher: ^6.3.0
   app_links: ^6.3.0
+  google_fonts: ^6.0.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -74,11 +76,13 @@ flutter:
     - assets/textures/fabric_grille.png
     - assets/textures/dust.png
     - assets/textures/noise.png
+    - assets/images/google_g.png
     - assets/audio/power_on.wav
     - assets/audio/power_off.wav
     - assets/audio/tune_tick.wav
     - assets/images/frequency_theater_bg.png
     - assets/icon/app_icon.png
+    - .env
 
   fonts:
     - family: ChosunCentennial
