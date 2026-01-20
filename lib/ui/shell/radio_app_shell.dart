@@ -380,7 +380,13 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   double bubbleH,
   Rect miniRect,
 ) {
-  const margin = 12.0;
+  const margin = 16.0;
+    // _StarPin에서 타겟 박스가 44x44이고,
+    // starOffset은 "중심"으로 쓰고 있으므로,
+    // CompositedTransformTarget(좌상단 기준)으로 환산하기 위한 보정값입니다.
+    const targetHalf = 22.0;
+    final targetTopLeft = Offset(starOffset.dx - targetHalf, starOffset.dy - targetHalf);
+
 
   // 화면을 기준으로 별의 위치를 분류
   final isLeft = starOffset.dx < screen.width * 0.33;
@@ -394,7 +400,7 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
 
   // 좌측이면 → 오른쪽에
   if (isLeft) {
-    dx = 16;
+    dx = 30;
     dy = -bubbleH / 2;
   }
 
@@ -424,10 +430,10 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   final bubbleBottom = absY + bubbleH;
   if (bubbleBottom > miniRect.top - 8) {
     final newAbsY = (miniRect.top - bubbleH - 12).clamp(margin, screen.height - bubbleH - margin);
-    return Offset(absX - starOffset.dx, newAbsY - starOffset.dy);
+    return Offset(absX - targetTopLeft.dx, newAbsY - targetTopLeft.dy);
   }
 
-  return Offset(absX - starOffset.dx, absY - starOffset.dy);
+  return Offset(absX - targetTopLeft.dx, absY - targetTopLeft.dy);
 }
 
   void _closeBubble() {

@@ -189,7 +189,7 @@ class _MyHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = Theme.of(context);
     return Container(
       height: 52,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       color: const Color(0xE61F1A17),
       child: Stack(
         children: [
@@ -203,7 +203,10 @@ class _MyHeaderDelegate extends SliverPersistentHeaderDelegate {
                   style: theme.textTheme.headlineMedium,
                 ),
               ),
-              _LogoutButton(onTap: onLogout),
+              Transform.translate(
+                offset: const Offset(0, -5),
+                child: _LogoutButton(onTap: onLogout),
+              ),
             ],
           ),
           Positioned(

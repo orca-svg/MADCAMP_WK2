@@ -167,11 +167,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) {
                   final id = state.pathParameters['id'] ?? '';
                   return PopScope(
-                    onPopInvoked: (didPop) {
+                    onPopInvokedWithResult: (didPop, result) {
                       if (!didPop) return;
-                      // ✅ 뒤로가기/돌아가기 시 theater 복귀
-                      ref.read(theaterProvider.notifier).resume();
-                      },
+                      final from = state.uri.queryParameters['from'];
+                      if (from == 'theater') {
+                        ref.read(theaterProvider.notifier).resume();
+                      }
+                    },
                    child: OpenDetailScreen(postId: id),
                   );
                 },

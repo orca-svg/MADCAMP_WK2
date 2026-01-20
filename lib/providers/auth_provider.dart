@@ -9,9 +9,9 @@ const _passwordKey = 'auth_password';
 const _nicknameKey = 'auth_nickname';
 const _signedInKey = 'auth_signed_in';
 const _tokenKey = 'auth_token';
-const _defaultUsername = 'radio_test';
-const _defaultPassword = 'radio1234';
-const _defaultNickname = 'Guest Listener';
+const _defaultUsername = 'radio';
+const _defaultPassword = '12341234';
+const _defaultNickname = 'Guest';
 
 Future<void> seedDefaultAccount(SharedPreferences prefs) async {
   final storedUsername = prefs.getString(_usernameKey);
