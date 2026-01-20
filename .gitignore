@@ -65,3 +65,5 @@ backend/.env.*
 
 frontend/ios/Podfile.lock
 frontend/macos/Podfile.lock
+
+.env
