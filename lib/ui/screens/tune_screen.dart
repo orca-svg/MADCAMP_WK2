@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +27,12 @@ const _tagOptions = [
   '#그냥_들어줘 🎧',
 ];
 
+/// ✅ 송신 오버레이가 "충분히" 보이도록 하는 타이밍 세트
+const _txTotalDuration = Duration(milliseconds: 2100);
+const _txFadeInMs = 260; // 처음 등장
+const _txMinShowMs = 1350; // 최소 체류(이 시간 전에는 theater로 안 넘어감)
+const _txAfterEnterDelayMs = 120; // theater enter 직후 오버레이 정리 딜레이
+
 class TuneScreen extends ConsumerStatefulWidget {
   const TuneScreen({super.key});
 
@@ -32,16 +40,34 @@ class TuneScreen extends ConsumerStatefulWidget {
   ConsumerState<TuneScreen> createState() => _TuneScreenState();
 }
 
-class _TuneScreenState extends ConsumerState<TuneScreen> {
+class _TuneScreenState extends ConsumerState<TuneScreen>
+    with SingleTickerProviderStateMixin {
   final _titleController = TextEditingController();
   final _storyController = TextEditingController();
   final _random = Random();
+
   bool _publishToBoard = false;
   final List<String> _selectedTags = [];
   DateTime? _lastTagSnackAt;
 
+  // ✅ 송수신 오버레이 상태
+  bool _isTransmitting = false;
+
+  // ✅ 리플/페이드 진행 컨트롤러
+  late final AnimationController _txController;
+
+  @override
+  void initState() {
+    super.initState();
+    _txController = AnimationController(
+      vsync: this,
+      duration: _txTotalDuration,
+    );
+  }
+
   @override
   void dispose() {
+    _txController.dispose();
     _titleController.dispose();
     _storyController.dispose();
     super.dispose();
@@ -160,6 +186,8 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
   }
 
   Future<void> _send() async {
+    if (_isTransmitting) return;
+
     final story = _storyController.text.trim();
     if (story.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,15 +196,46 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
       return;
     }
 
+    final startedAt = DateTime.now();
+
+    // ✅ 1) 송신 오버레이 시작 (페이드 인 충분히 보이게)
+    setState(() => _isTransmitting = true);
+    _txController.stop();
+    _txController.value = 0;
+    unawaited(_txController.forward());
+
+    // 페이드 인이 눈에 보이도록 아주 짧게 대기
+    await Future<void>.delayed(const Duration(milliseconds: _txFadeInMs));
+    if (!mounted) return;
+
+    // ✅ 2) 데이터 처리/핀 생성 (기능 유지)
     final post = ref.read(boardControllerProvider.notifier).submitStory(
           title: _titleController.text.trim(),
           body: story,
           tags: List<String>.from(_selectedTags),
           publish: _publishToBoard,
         );
+
     final allPosts = ref.read(boardControllerProvider).openPosts;
     final pins = _buildPins(allPosts, _publishToBoard ? post : null);
+
+    // ✅ 3) 오버레이 최소 체류 시간 보장 (여기가 "너무 빨리 전환" 문제의 핵심 해결)
+    final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+    final remainMs = (_txMinShowMs - elapsedMs).clamp(0, _txMinShowMs);
+    if (remainMs > 0) {
+      await Future<void>.delayed(Duration(milliseconds: remainMs));
+      if (!mounted) return;
+    }
+
+    // ✅ 4) theater 진입
     ref.read(theaterProvider.notifier).enter(pins: pins);
+
+    // ✅ 5) 오버레이 상태 정리(살짝만 여유 후 끄기)
+    await Future<void>.delayed(
+      const Duration(milliseconds: _txAfterEnterDelayMs),
+    );
+    if (!mounted) return;
+    setState(() => _isTransmitting = false);
   }
 
   @override
@@ -184,13 +243,15 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
     final theme = Theme.of(context);
     final theaterActive = ref.watch(theaterProvider).isActive;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return IgnorePointer(
-          ignoring: theaterActive,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // ✅ 작성 패널(기존 화면)
+        IgnorePointer(
+          ignoring: theaterActive || _isTransmitting,
           child: AnimatedOpacity(
-            opacity: theaterActive ? 0 : 1,
-            duration: const Duration(milliseconds: 240),
+            opacity: (theaterActive || _isTransmitting) ? 0 : 1,
+            duration: const Duration(milliseconds: 320),
             curve: Curves.easeOutCubic,
             child: _ComposePanel(
               theme: theme,
@@ -205,8 +266,17 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
               onSend: _send,
             ),
           ),
-        );
-      },
+        ),
+
+        // ✅ 송수신 오버레이(검은 화면 + 중앙 문구 + 물결)
+        if (_isTransmitting)
+          Positioned.fill(
+            child: _TransmitOverlay(
+              controller: _txController,
+              text: '주파수를 송신 중입니다.',
+            ),
+          ),
+      ],
     );
   }
 
@@ -216,6 +286,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
       buffer.insert(0, newPost);
     }
     buffer.shuffle(_random);
+
     final selected = buffer.take(10).toList();
     final pins = selected
         .map(
@@ -227,6 +298,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
           ),
         )
         .toList();
+
     if (pins.length < 10) {
       final gap = 10 - pins.length;
       for (int i = 0; i < gap; i++) {
@@ -242,6 +314,150 @@ class _TuneScreenState extends ConsumerState<TuneScreen> {
     }
     return pins;
   }
+}
+
+class _TransmitOverlay extends StatelessWidget {
+  const _TransmitOverlay({
+    required this.controller,
+    required this.text,
+  });
+
+  final AnimationController controller;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ 페이드: In → Hold → Out
+    final opacity = CurvedAnimation(
+      parent: controller,
+      curve: const Interval(0.00, 0.18, curve: Curves.easeOut),
+      reverseCurve: const Interval(0.82, 1.00, curve: Curves.easeIn),
+    );
+
+    // Interval로 "유지" 구간을 만들기 위해 TweenSequence 사용
+    final holdOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: 1)
+            .chain(CurveTween(curve: const Interval(0.00, 0.18, curve: Curves.easeOut))),
+        weight: 18,
+      ),
+      TweenSequenceItem(tween: ConstantTween<double>(1), weight: 64),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1, end: 0)
+            .chain(CurveTween(curve: const Interval(0.82, 1.00, curve: Curves.easeIn))),
+        weight: 18,
+      ),
+    ]).animate(controller);
+
+    return FadeTransition(
+      opacity: holdOpacity,
+      child: ColoredBox(
+        color: Colors.black.withOpacity(0.92),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                _RippleWaves(progress: controller),
+                _TransmitTextCard(text: text),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TransmitTextCard extends StatelessWidget {
+  const _TransmitTextCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1714).withOpacity(0.92),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFFF2EBDD),
+              fontFamily: _readableBodyFont,
+            ),
+      ),
+    );
+  }
+}
+
+class _RippleWaves extends StatelessWidget {
+  const _RippleWaves({required this.progress});
+
+  final Animation<double> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, _) {
+        return CustomPaint(
+          size: const Size(360, 360),
+          painter: _RipplePainter(t: progress.value),
+        );
+      },
+    );
+  }
+}
+
+/// ✅ "계속 퍼지는" 느낌: t를 loop로 사용
+class _RipplePainter extends CustomPainter {
+  _RipplePainter({required this.t});
+
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // t(0..1)를 조금 빠르게 진행시키고, 3겹을 서로 다른 위상으로 반복
+    final base = (t * 1.35) % 1.0;
+
+    for (final phase in [0.0, 0.28, 0.56]) {
+      final local = (base + phase) % 1.0;
+
+      final eased = Curves.easeOutCubic.transform(local);
+      final radius = lerpDouble(28, size.width * 0.48, eased)!;
+
+      // 중앙은 진하고 밖으로 갈수록 옅게
+      final alpha = (1.0 - local).clamp(0.0, 1.0);
+
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = lerpDouble(2.2, 0.7, eased)!
+        ..color = const Color(0xFFF2EBDD).withOpacity(0.18 * alpha);
+
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RipplePainter oldDelegate) => oldDelegate.t != t;
 }
 
 class _ComposePanel extends StatelessWidget {
@@ -307,6 +523,7 @@ class _ComposePanel extends StatelessWidget {
                           : constraints.maxHeight;
                       final clampedHeight =
                           (availableHeight * 0.46).clamp(120.0, 220.0);
+
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -379,36 +596,6 @@ class _ComposePanel extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _TransmitBanner extends StatelessWidget {
-  const _TransmitBanner({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xCC1F1A17),
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
-      ),
-      child: Center(
-        child: Text(
-          '잠시 송수신 화면으로 전환됩니다.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFF2EBDD),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
     );
   }
 }
@@ -559,205 +746,6 @@ class _SelectedTagChip extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w800,
             color: Color(0xEBD7CCB9),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StarBoard extends StatelessWidget {
-  const _StarBoard({
-    required this.posts,
-    required this.onPinTap,
-    required this.pinOffsetFor,
-  });
-
-  final List<BoardPost> posts;
-  final void Function(BoardPost post, LayerLink link) onPinTap;
-  final Offset Function(BoardPost post, int index) pinOffsetFor;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            for (int i = 0; i < posts.length; i++)
-              _StarPin(
-                key: ValueKey(posts[i].id),
-                post: posts[i],
-                offset: pinOffsetFor(posts[i], i),
-                onTap: onPinTap,
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StarPin extends StatefulWidget {
-  const _StarPin({
-    super.key,
-    required this.post,
-    required this.offset,
-    required this.onTap,
-  });
-
-  final BoardPost post;
-  final Offset offset;
-  final void Function(BoardPost post, LayerLink link) onTap;
-
-  @override
-  State<_StarPin> createState() => _StarPinState();
-}
-
-class _StarPinState extends State<_StarPin> {
-  final LayerLink _link = LayerLink();
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: widget.offset.dx,
-      top: widget.offset.dy,
-      child: CompositedTransformTarget(
-        link: _link,
-        child: GestureDetector(
-          onTap: () => widget.onTap(widget.post, _link),
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Center(
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [
-                      Color(0xFFF2EBDD),
-                      Color(0x99D7CCB9),
-                    ],
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x66F2EBDD),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StarPopover extends StatelessWidget {
-  const _StarPopover({required this.post});
-
-  final BoardPost post;
-
-  @override
-  Widget build(BuildContext context) {
-    final tags = post.tags.take(3).toList();
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 260),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        decoration: BoxDecoration(
-          color: const Color(0xE61F1A17),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x66000000),
-              blurRadius: 18,
-              offset: Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final tag in tags) _MiniTagChip(text: tag),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _formatDate(post.createdAt),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontSize: 11,
-                        color: Colors.white.withOpacity(0.75),
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              post.body,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: _readableBodyFont,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '한 번 더 누르면 상세보기',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.75),
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _formatDate(DateTime time) {
-  final year = time.year.toString().padLeft(4, '0');
-  final month = time.month.toString().padLeft(2, '0');
-  final day = time.day.toString().padLeft(2, '0');
-  return '$year.$month.$day';
-}
-
-class _MiniTagChip extends StatelessWidget {
-  const _MiniTagChip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: const Color(0x33171411),
-        borderRadius: BorderRadius.circular(11),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xE6F2EBDD),
           ),
         ),
       ),

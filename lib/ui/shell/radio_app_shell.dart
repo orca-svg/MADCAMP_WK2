@@ -61,6 +61,9 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
   bool _wasTheaterActive = false;
   OverlayEntry? _bubbleEntry;
   String? _bubbleStarId;
+  List<StarPin> _cachedTheaterPins = const [];
+  bool _restoreTheaterScheduled = false;
+
 
   bool _canShowPowerOffSnack() {
     final last =
@@ -110,6 +113,28 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
     final safeTop = MediaQuery.of(context).padding.top;
     final theater = ref.watch(theaterProvider);
     final theaterController = ref.read(theaterProvider.notifier);
+
+    if (theater.isActive && theater.pins.isNotEmpty) {
+      _cachedTheaterPins = theater.pins;
+    }
+
+    // ✅ URL 쿼리로 theater 복귀 요청이 오면, 캐시된 pins로 theater를 다시 켠다.
+    // 예: /tune?theater=1
+    final uri = GoRouterState.of(context).uri;
+    final wantRestore = uri.queryParameters['theater'] == '1';
+    if (wantRestore &&
+        !theater.isActive &&
+        _cachedTheaterPins.isNotEmpty &&
+        !_restoreTheaterScheduled) {
+      _restoreTheaterScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        theaterController.enter(pins: _cachedTheaterPins);
+        // 쿼리 제거(루프 방지)
+        context.go(uri.path);
+        _restoreTheaterScheduled = false;
+      });
+    }
     if (theater.isActive != _wasTheaterActive) {
       _starPositions.clear();
       _starLinks.clear();
