@@ -5,10 +5,17 @@ import { AuthController } from './auth.controller';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SessionAuthGuard } from './guards/session-auth.guard';
+import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
-  imports: [PassportModule],
+  imports: [
+    PassportModule,
+    ConfigModule,
+    PrismaModule
+  ],
+  exports: [AuthService],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, PrismaService, SessionAuthGuard],
+  providers: [AuthService, GoogleStrategy, SessionAuthGuard],
 })
 export class AuthModule {}
