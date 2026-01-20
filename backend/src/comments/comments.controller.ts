@@ -4,10 +4,11 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { ApiGetResponse, ApiPostResponse } from 'src/common/decorators/swagger.decorator';
 import { CommentEntity } from './entities/comment.entity';
 import { ResponseMessage } from 'src/common/decorators/response-message.decorator';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SessionAuthGuard } from 'src/auth/guards/session-auth.guard';
 import { UseGuards, Req } from '@nestjs/common';
 
+@ApiTags('comments')
 @Controller('comments')
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}

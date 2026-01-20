@@ -7,7 +7,9 @@ import { StoryEntity } from './entities/story.entity';
 import { ApiPostResponse, ApiGetResponse } from 'src/common/decorators/swagger.decorator';
 import { UseGuards, Req } from '@nestjs/common';
 import { SessionAuthGuard } from 'src/auth/guards/session-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('stories')
 @Controller('stories')
 export class StoriesController {
   constructor(private readonly storiesService: StoriesService) {}
