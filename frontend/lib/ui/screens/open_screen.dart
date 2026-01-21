@@ -118,21 +118,50 @@ class _OpenScreenState extends ConsumerState<OpenScreen> {
           ),
         ),
         const SliverPadding(padding: EdgeInsets.only(top: 10)),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final post = filtered[index];
-              return PostPreviewCard(
-                title: post.title,
-                body: post.body,
-                createdAt: post.createdAt,
-                tags: post.tags,
-                onTap: () => context.go('/open/${post.id}'),
-              );
-            },
-            childCount: filtered.length,
+        // ✅ Empty state when no posts
+        if (filtered.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.radio_outlined,
+                      size: 48,
+                      color: const Color(0xFFD7CCB9).withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '아직 열린 주파수에 글이 없어요.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFD7CCB9).withValues(alpha: 0.8),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final post = filtered[index];
+                return PostPreviewCard(
+                  title: post.title,
+                  body: post.body,
+                  createdAt: post.createdAt,
+                  tags: post.tags,
+                  onTap: () => context.go('/open/${post.id}'),
+                );
+              },
+              childCount: filtered.length,
+            ),
           ),
-        ),
       ],
     );
   }

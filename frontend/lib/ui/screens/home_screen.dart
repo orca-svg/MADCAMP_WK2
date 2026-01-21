@@ -40,7 +40,10 @@ class HomeScreen extends ConsumerWidget {
           isBookmarked: isBookmarked,
           onToggleBookmark: messageIdStr == null
               ? null
-              : () => ref.read(bookmarksProvider.notifier).toggle(messageIdStr),
+              : () => ref.read(bookmarksProvider.notifier).toggle(
+                    messageIdStr,
+                    content: messageState.message,
+                  ),
         ),
       ],
     );

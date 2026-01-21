@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\limuj\Desktop\madcamp\week2\MADCAMP_WK2\frontend"
+export "FLUTTER_ROOT=/opt/homebrew/share/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/junyeop_lee/Desktop/MadCamp/madcamp_2/frontend"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"

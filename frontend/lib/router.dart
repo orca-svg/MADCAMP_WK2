@@ -98,7 +98,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               final isLoggedIn = ref.watch(authProvider).isSignedIn;
               final isOpenDetail = location.startsWith('/open/') &&
                   location != '/open';
-              final contentOverride = isOpenDetail ? child : null;
+              final isMySubpage = location.startsWith('/my/') &&
+                  location != '/my';
+              final contentOverride = (isOpenDetail || isMySubpage) ? child : null;
               return RadioAppShell(
                 indicatorLabel: _tabs[tabIndex].label,
                 tabIndex: tabIndex,
@@ -202,8 +204,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => const AdoptedComfortsScreen(),
               ),
               GoRoute(
-                  path: '/my/bookmarks',
-                  builder: (context, state) => const BookmarksScreen(),
+                path: 'bookmarks',
+                builder: (context, state) => const BookmarksScreen(),
               ),
             ],
           ),
