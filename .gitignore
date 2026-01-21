@@ -70,3 +70,5 @@ frontend/macos/Podfile.lock
 CLAUDE.md
 .CLAUDE
 .claude/*
+
+.node_modules/*

@@ -19,8 +19,8 @@ class BoardState {
   const BoardState({
     required this.openPosts,
     required this.myPosts,
-    required this.isLoadingOpen,
-    required this.isLoadingMine,
+    this.isLoadingOpen = false,
+    this.isLoadingMine = false,
   });
 
   final List<BoardPost> openPosts;
@@ -42,12 +42,7 @@ class BoardState {
     );
   }
 
-  factory BoardState.initial() => const BoardState(
-        openPosts: [],
-        myPosts: [],
-        isLoadingOpen: false,
-        isLoadingMine: false,
-      );
+  factory BoardState.initial() => const BoardState(openPosts: [], myPosts: []);
 }
 
 class BoardController extends StateNotifier<BoardState> {
@@ -77,42 +72,49 @@ class BoardController extends StateNotifier<BoardState> {
     }
   }
 
-  Future<BoardPost> submitStory({
+  
+
+  Future<void> submitStory({
     required String title,
     required String body,
     required List<String> tags,
     required bool publish,
   }) async {
-    final created = await _repository.submitStory(
+    await _repository.submitStory(
       title: title,
       body: body,
       tags: tags,
       publish: publish,
     );
 
-    // myPosts 갱신
     await refreshMine();
-
-    // 공개로 발행한 경우 open도 갱신(또는 optimistic insert)
-    if (publish) {
-      await refreshOpen();
-    }
-    return created;
+    if (publish) await refreshOpen();
   }
 
-  Future<BoardPost?> findById(String id) async {
-    // 우선 캐시에서 찾고, 없으면 API로
+  Future<void> deleteStory(String storyId) async {
+    await _repository.deleteStory(storyId);
+
+    // optimistic local remove
+    final openNext = state.openPosts.where((p) => p.id != storyId).toList(growable: false);
+    final mineNext = state.myPosts.where((p) => p.id != storyId).toList(growable: false);
+    state = state.copyWith(openPosts: openNext, myPosts: mineNext);
+
+    // re-sync
+    await refreshMine();
+    await refreshOpen();
+  }
+
+  BoardPost? findById(String id) {
     for (final p in state.openPosts) {
       if (p.id == id) return p;
     }
     for (final p in state.myPosts) {
       if (p.id == id) return p;
     }
-    return _repository.findById(id);
+    return null;
   }
 
   Future<void> toggleStoryLike(String storyId) async {
-    // optimistic: openPosts에서 즉시 반영(UX)
     final open = [...state.openPosts];
     final idx = open.indexWhere((e) => e.id == storyId);
     if (idx >= 0) {
@@ -122,51 +124,17 @@ class BoardController extends StateNotifier<BoardState> {
       open[idx] = p.copyWith(likedByMe: nextLiked, likeCount: nextCount);
       state = state.copyWith(openPosts: open);
     }
-    final mine = [...state.myPosts];
-    final mineIdx = mine.indexWhere((e) => e.id == storyId);
-    if (mineIdx >= 0) {
-      final p = mine[mineIdx];
-      final nextLiked = !p.likedByMe;
-      final nextCount = (p.likeCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
-      mine[mineIdx] = p.copyWith(likedByMe: nextLiked, likeCount: nextCount);
-      state = state.copyWith(myPosts: mine);
-    }
 
     try {
-      final refreshed = await _repository.toggleStoryLike(storyId);
-
-      // 서버 값으로 정합 맞추기(있으면)
+      final updated = await _repository.toggleStoryLike(storyId);
       final open2 = [...state.openPosts];
       final idx2 = open2.indexWhere((e) => e.id == storyId);
-      if (idx2 >= 0) {
-        open2[idx2] = open2[idx2].copyWith(
-          likedByMe: refreshed.likedByMe,
-          likeCount: refreshed.likeCount,
-        );
-      }
-      final mine2 = [...state.myPosts];
-      final mineIdx2 = mine2.indexWhere((e) => e.id == storyId);
-      if (mineIdx2 >= 0) {
-        mine2[mineIdx2] = mine2[mineIdx2].copyWith(
-          likedByMe: refreshed.likedByMe,
-          likeCount: refreshed.likeCount,
-        );
-      }
-      state = state.copyWith(openPosts: open2, myPosts: mine2);
+      if (idx2 >= 0) open2[idx2] = updated;
+      state = state.copyWith(openPosts: open2);
     } catch (_) {
-      // 실패 시 전체 새로고침으로 복구
       await refreshOpen();
-      await refreshMine();
-      rethrow;
     }
   }
-
-  /// Alias for toggleStoryLike (UI compatibility)
-  Future<void> togglePostLike(String postId) => toggleStoryLike(postId);
-
-  // 댓글은 detail screen에서 repository 직접 사용해도 되지만,
-  // 일단 컨트롤러에서 다루기 쉽게 provider로 노출합니다.
-  BoardRepository get repository => _repository;
 }
 
 final boardControllerProvider =
@@ -176,10 +144,9 @@ final boardControllerProvider =
 });
 
 final boardPostProvider = FutureProvider.family<BoardPost?, String>((ref, id) async {
-  // Recompute when board state changes so like state stays fresh.
   ref.watch(boardControllerProvider);
   final controller = ref.read(boardControllerProvider.notifier);
-  return controller.findById(id);
+  return controller.findById(id) ?? await ref.read(boardRepositoryProvider).findById(id);
 });
 
 final myPostsProvider = Provider<List<BoardPost>>((ref) {

@@ -85,6 +85,8 @@ abstract class BoardRepository {
     required String content,
   });
   Future<ApiComment> toggleCommentLike(String commentId);
+  Future<void> deleteStory(String storyId);
+
 }
 
 /// ✅ API Repository
@@ -267,4 +269,10 @@ class ApiBoardRepository implements BoardRepository {
       rethrow;
     }
   }
+
+@override
+Future<void> deleteStory(String storyId) async {
+  await _dio.delete('/stories/$storyId');
+}
+
 }

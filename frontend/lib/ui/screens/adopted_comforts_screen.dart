@@ -166,7 +166,7 @@ class _AdoptedCommentRow extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      comment.storyTitle.isNotEmpty
+                      (comment.storyTitle.trim().isNotEmpty)
                           ? comment.storyTitle
                           : '(제목 없음)',
                       maxLines: 1,

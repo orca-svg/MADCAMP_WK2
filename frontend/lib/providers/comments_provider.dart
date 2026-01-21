@@ -28,8 +28,7 @@ class CommentsState {
 }
 
 class CommentsController extends StateNotifier<CommentsState> {
-  CommentsController(this._repo, this.postId)
-      : super(const CommentsState(items: [])) {
+  CommentsController(this._repo, this.postId) : super(const CommentsState(items: [])) {
     refresh();
   }
 
@@ -47,7 +46,6 @@ class CommentsController extends StateNotifier<CommentsState> {
   }
 
   Future<void> add(String text) async {
-    // optimistic: 임시 댓글 추가 후 refresh
     try {
       await _repo.addComment(postId, text);
       await refresh();
@@ -55,14 +53,22 @@ class CommentsController extends StateNotifier<CommentsState> {
   }
 
   Future<void> toggleLike(String commentId) async {
-    // optimistic
     final next = state.items.map((c) {
       if (c.id != commentId) return c;
-      c.isLiked = !c.isLiked;
-      c.likeCount += c.isLiked ? 1 : -1;
-      if (c.likeCount < 0) c.likeCount = 0;
-      return c;
-    }).toList();
+      final copy = CommentItem(
+        id: c.id,
+        postId: c.postId,
+        text: c.text,
+        createdAt: c.createdAt,
+        authorId: c.authorId,
+        likeCount: c.likeCount,
+        isLiked: c.isLiked,
+        isBest: c.isBest,
+      );
+      copy.isLiked = !copy.isLiked;
+      copy.likeCount = (copy.likeCount + (copy.isLiked ? 1 : -1)).clamp(0, 1 << 30);
+      return copy;
+    }).toList(growable: false);
     state = state.copyWith(items: next);
 
     try {
@@ -73,8 +79,17 @@ class CommentsController extends StateNotifier<CommentsState> {
   }
 
   Future<void> accept(String commentId) async {
-    // Propagate errors so UI can show appropriate message
     await _repo.acceptComment(postId, commentId);
+    await refresh();
+  }
+
+  Future<void> deleteComment(String commentId) async {
+    await _repo.deleteComment(commentId);
+    await refresh();
+  }
+
+  Future<void> remove(String commentId) async {
+    await _repo.deleteComment(commentId);
     await refresh();
   }
 }
@@ -85,7 +100,6 @@ final commentsProvider =
   return CommentsController(repo, postId);
 });
 
-/// Provider for user's adopted comments (comments they authored that were accepted)
 final myAdoptedCommentsProvider = FutureProvider<List<AdoptedComment>>((ref) async {
   final repo = ref.watch(commentsRepositoryProvider);
   return repo.fetchMyAdoptedComments();

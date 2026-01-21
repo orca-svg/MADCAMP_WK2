@@ -103,9 +103,20 @@ export class CommentsService {
   }
 
   async remove(userId: string, id: string) {
-    const comment = await this.prisma.comment.findUnique({ where: { id } });
+    const comment = await this.prisma.comment.findUnique({
+      where: { id },
+      select: { id: true, userId: true, storyId: true },
+    });
     if (!comment) throw new NotFoundException('Comment not found');
-    if (comment.userId !== userId) throw new ForbiddenException('No permission');
+
+    // ✅ 작성자 본인 OR 사연 작성자(스토리 오너)만 삭제 가능
+    if (comment.userId !== userId) {
+      const story = await this.prisma.story.findUnique({
+        where: { id: comment.storyId },
+        select: { userId: true },
+      });
+      if (!story || story.userId !== userId) throw new ForbiddenException('No permission');
+    }
 
     return this.prisma.comment.delete({ where: { id } });
   }

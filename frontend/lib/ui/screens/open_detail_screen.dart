@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 
 import '../../data/board_repository.dart';
 import '../../data/comments_repository.dart';
@@ -11,22 +12,22 @@ import '../../providers/comments_provider.dart';
 const _readableBodyFont = 'ChosunCentennial';
 
 // ✅ Speaker texture for comment area (matches speaker panel)
-const String _speakerTexturePath = 'assets/textures/fabric_grille.png';
-const Color _speakerBase = Color(0xFF171411);
-
-BoxDecoration _speakerTextureDecoration() {
-  return BoxDecoration(
-    color: _speakerBase,
-    image: DecorationImage(
-      image: const AssetImage(_speakerTexturePath),
-      fit: BoxFit.cover,
-      colorFilter: ColorFilter.mode(
-        const Color(0xFF0B0908).withValues(alpha: 0.35),
-        BlendMode.darken,
-      ),
-    ),
-  );
+// const String _speakerTexturePath = 'assets/textures/fabric_grille.png';
+// const Color _speakerBase = Color(0xFF171411);
+String _fmtDateTime(DateTime dt) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${dt.year}.${two(dt.month)}.${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
 }
+// BoxDecoration _speakerTextureDecoration() {
+//   return const BoxDecoration(
+//     color: _speakerBase,
+//     image: DecorationImage(
+//       image: AssetImage(_speakerTexturePath),
+//       fit: BoxFit.cover,
+//       opacity: 0.20,
+//     ),
+//   );
+// }
 
 class OpenDetailScreen extends ConsumerStatefulWidget {
   const OpenDetailScreen({
@@ -44,42 +45,14 @@ class OpenDetailScreen extends ConsumerStatefulWidget {
 
 class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
+
   String? _acceptedCommentId;
-  bool _postLiked = false;
-  int _postLikeCount = 0;
   String? _initializedPostId;
-  BoardPost? _cachedPost;
 
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
-
-  void _ensureInitialized(BoardPost post, String currentUserId) {
+  void _ensureInitialized(BoardPost post) {
     if (_initializedPostId == post.id) return;
     _initializedPostId = post.id;
-    _postLikeCount = post.empathyCount;
-    _postLiked = post.likedByMe;
     _acceptedCommentId = post.acceptedCommentId;
-  }
-
-  Future<void> _togglePostLike(String postId) async {
-    // optimistic UI
-    setState(() {
-      _postLiked = !_postLiked;
-      _postLikeCount += _postLiked ? 1 : -1;
-      if (_postLikeCount < 0) _postLikeCount = 0;
-    });
-    await ref.read(boardControllerProvider.notifier).togglePostLike(postId);
-  }
-
-  Future<void> _submitComment(String postId) async {
-    final text = _commentController.text.trim();
-    if (text.isEmpty) return;
-    _commentController.clear();
-    FocusScope.of(context).unfocus();
-    await ref.read(commentsProvider(postId).notifier).add(text);
   }
 
   Future<void> _showAdoptConfirmDialog(
@@ -90,135 +63,203 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2520),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          '위로 채택',
-          style: TextStyle(
-            color: Color(0xFFF2EBDD),
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        contentPadding: EdgeInsets.zero,
+        content: _DialogPanel(
+          title: '해당 위로를 채택하시겠습니까?',
+          body: '채택은 취소할 수 없으며, 사연당 하나의 위로만 채택할 수 있습니다.',
+          confirmLabel: '채택',
+          destructive: false,
+          onCancel: () => Navigator.of(ctx).pop(false),
+          onConfirm: () => Navigator.of(ctx).pop(true),
         ),
-        content: const Text(
-          '해당 위로를 채택하시겠습니까?\n채택은 취소할 수 없으며, 사연당 하나의 위로만 채택할 수 있습니다.',
-          style: TextStyle(
-            color: Color(0xCCD7CCB9),
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
-              '취소',
-              style: TextStyle(color: Color(0x99D7CCB9)),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              '채택',
-              style: TextStyle(
-                color: Color(0xFFF2EBDD),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
 
-    if (confirmed == true) {
-      try {
-        await commentsCtrl.accept(commentId);
-        await commentsCtrl.refresh();
-        if (mounted) {
-          ref.invalidate(boardPostProvider(widget.postId)); // 스토리 상세 갱신
-          setState(() => _acceptedCommentId = commentId);
-        }
-      } catch (e) {
-        if (!mounted) return;
-        // Show error snackbar
+    if (confirmed != true) return;
+
+    try {
+      await commentsCtrl.accept(commentId);
+      if (!mounted) return;
+      setState(() => _acceptedCommentId = commentId);
+      ref.invalidate(boardPostProvider(widget.postId));
+      await commentsCtrl.refresh();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final status = e.response?.statusCode;
+      if (status == 409) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().contains('409')
-                  ? '이미 채택된 위로가 있습니다.'
-                  : '채택에 실패했습니다.',
-            ),
-            backgroundColor: const Color(0xFFE25B5B),
-          ),
+          const SnackBar(content: Text('이미 채택된 위로가 있어요.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('채택에 실패했어요. 잠시 후 다시 시도해 주세요.')),
         );
       }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('채택에 실패했어요. 잠시 후 다시 시도해 주세요.')),
+      );
     }
+  }
+
+  Future<void> _showDeleteStoryConfirmDialog(
+    BuildContext context, {
+    required BoardController boardCtrl,
+    required String storyId,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        contentPadding: EdgeInsets.zero,
+        content: _DialogPanel(
+          title: '사연을 삭제할까요?',
+          body: '삭제하면 이 사연에 달린 위로(댓글)도 함께 삭제됩니다.',
+          destructiveLabel: '삭제하기',
+          onCancel: () => Navigator.of(ctx).pop(false),
+          onConfirm: () => Navigator.of(ctx).pop(true),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await boardCtrl.deleteStory(storyId);
+
+      if (mounted) {
+        ref.invalidate(boardPostProvider(storyId));
+        ref.invalidate(commentsProvider(storyId));
+      }
+
+      if (!mounted) return;
+      if (widget.fromTheater) {
+        context.pop();
+      } else if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/open');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사연 삭제에 실패했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
+
+  Future<void> _showDeleteCommentConfirmDialog(
+    BuildContext context, {
+    required CommentsController commentsCtrl,
+    required String commentId,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        contentPadding: EdgeInsets.zero,
+        content: _DialogPanel(
+          title: '위로를 삭제할까요?',
+          body: null,
+          destructiveLabel: '삭제',
+          onCancel: () => Navigator.of(ctx).pop(false),
+          onConfirm: () => Navigator.of(ctx).pop(true),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await commentsCtrl.deleteComment(commentId);
+      await commentsCtrl.refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('위로 삭제에 실패했어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
+
+  List<CommentItem> _orderedComments(List<CommentItem> items, String? acceptedId) {
+    if (acceptedId == null) return items;
+    final accepted = items.where((c) => c.id == acceptedId).toList(growable: false);
+    final others = items.where((c) => c.id != acceptedId).toList(growable: false);
+    return [...accepted, ...others];
+  }
+
+  Future<void> _submitComment(String postId) async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+    _commentController.clear();
+    final ctrl = ref.read(commentsProvider(postId).notifier);
+    await ctrl.add(text);
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final postAsync = ref.watch(boardPostProvider(widget.postId));
+    final boardCtrl = ref.read(boardControllerProvider.notifier);
     final commentsState = ref.watch(commentsProvider(widget.postId));
     final commentsCtrl = ref.read(commentsProvider(widget.postId).notifier);
     final authState = ref.watch(authProvider);
     final theme = Theme.of(context);
 
-    final valuePost = postAsync.value;
-    if (valuePost != null) {
-      _cachedPost = valuePost;
-    }
-    final post = _cachedPost;
-
+    final post = postAsync.valueOrNull;
     if (post == null) {
-      if (postAsync.hasError) {
-        return Center(
-          child: Text(
-            '주파수를 불러올 수 없어요. ${postAsync.error}',
-            style: theme.textTheme.titleMedium,
-          ),
-        );
+      if (postAsync.isLoading) {
+        return const Center(child: CircularProgressIndicator());
       }
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Text(
+          '사연을 불러올 수 없어요.',
+          style: theme.textTheme.titleMedium,
+        ),
+      );
     }
+
+    _ensureInitialized(post);
 
     final currentUserId = authState.userIdLikeKey;
-    _ensureInitialized(post, currentUserId);
-    final isPostOwner = currentUserId.isNotEmpty &&
-        post.authorId != null &&
-        post.authorId == currentUserId;
+    final isPostOwner = (post.authorId != null && post.authorId == currentUserId) || post.isMine;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ 상단: 목록으로/극장으로 + (작성자만) 사연 삭제
+              Row(
                 children: [
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        if (widget.fromTheater) {
-                          // Return to theater mode
-                          context.pop();
-                        } else if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/open');
-                        }
-                      },
-                      customBorder: const StadiumBorder(),
-                      child: Ink(
-                        height: 28,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0x24171411),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                              color: const Color(0x2ED7CCB9), width: 1),
-                        ),
-                        child: Row(
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            if (widget.fromTheater) {
+                              context.pop();
+                            } else {
+                              context.pop();
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
@@ -236,183 +277,296 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                             ),
                           ],
                         ),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    post.title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontFamily: _readableBodyFont,
+                  if (isPostOwner)
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        foregroundColor: const Color(0xFFF2EBDD),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: _readableBodyFont,
+                        ),
+                      ),
+                    onPressed: () => _showDeleteStoryConfirmDialog(
+                        context,
+                        boardCtrl: boardCtrl,
+                        storyId: post.id,
+                      ),
+                      child: const Text('사연 삭제'),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (post.tags.isNotEmpty) ...[
-                    _TagRow(tags: post.tags),
-                    const SizedBox(height: 8),
-                  ],
-                  Text(
-                    _formatTime(post.createdAt),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: _readableBodyFont,
-                    ),
-                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 8),
-            // ✅ Comment area with speaker texture background
-            Expanded(
-              child: Container(
-                decoration: _speakerTextureDecoration(),
-                child: Column(
+              const SizedBox(height: 10),
+
+              // ✅ 제목 (좌측 10px 여백)
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Text(
+                  post.title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontFamily: _readableBodyFont,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFF2EBDD),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // ✅ 태그 (좌측 10px 여백)
+              if (post.tags.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: post.tags
+                        .map(
+                          (t) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0x1A171411),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: const Color(0x1FD7CCB9), width: 1),
+                            ),
+                            child: Text(
+                              t,
+                              style: const TextStyle(
+                                fontFamily: _readableBodyFont,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFD7CCB9),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              const SizedBox(height: 10),
+
+              // ✅ 본문 (좌측 10px 여백)
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: Text(
+                  post.body,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: _readableBodyFont,
+                    fontSize: 14,
+                    height: 1.35,
+                    color: const Color(0xFFF2EBDD).withValues(alpha: 0.95),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // ✅ 하단 row: 게시 시간(작게) + 공감(우측)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
                   children: [
                     Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          final comments = commentsState.items;
-                          final ordered =
-                              _orderedComments(comments, _acceptedCommentId);
-                          final acceptEnabled =
-                              isPostOwner && _acceptedCommentId == null;
-                          return ListView.separated(
-                            padding: const EdgeInsets.only(top: 12, bottom: 12),
-                          itemCount: ordered.length + 1,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return _PostDetailCard(
-                                body: post.body,
-                                isLiked: _postLiked,
-                                likeCount: _postLikeCount,
-                                onToggleLike: () => _togglePostLike(post.id),
-                              );
-                            }
-                            final comment = ordered[index - 1];
-                            final isAccepted =
-                                comment.id == _acceptedCommentId;
-                            return _CommentCard(
-                              comment: comment,
-                              isAccepted: isAccepted,
-                              isPostOwner: isPostOwner,
-                              onToggleLike: () =>
-                                  commentsCtrl.toggleLike(comment.id),
-                              onToggleAccept: acceptEnabled
-                                  ? () => _showAdoptConfirmDialog(
-                                        context,
-                                        comment.id,
-                                        commentsCtrl,
-                                      )
-                                  : null,
-                            );
-                          },
-                        );
-                      },
+                      child: Text(
+                        _fmtDateTime(post.createdAt),
+                        style: const TextStyle(
+                          fontFamily: _readableBodyFont,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xCCD7CCB9),
+                        ),
+                      ),
                     ),
-                  ),
-                    Padding(
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
-                      ),
-                      child: _CommentInputBar(
-                        controller: _commentController,
-                        onSend: () => _submitComment(post.id),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          onPressed: () async {
+                            try {
+                              await ref.read(boardControllerProvider.notifier).toggleStoryLike(post.id);
+                            } catch (_) {}
+                          },
+                          icon: Icon(
+                            post.likedByMe ? Icons.favorite : Icons.favorite_border,
+                            color: post.likedByMe ? const Color.fromARGB(255, 242, 76, 76) : const Color(0xFFD7CCB9),
+                            size: 18,
+                          ),
+                        ),
+                        Text(
+                          '${post.likeCount}',
+                          style: const TextStyle(
+                            fontFamily: _readableBodyFont,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFF2EBDD),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+const SizedBox(height: 8),
+
+        Expanded(
+          child: InkWell(
+            child: Column(
+              children: [
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final comments = commentsState.items;
+                      final ordered = _orderedComments(comments, _acceptedCommentId);
+                      if (_acceptedCommentId == null) {
+                        final best = comments.where((c) => c.isBest).toList();
+                        if (best.isNotEmpty) _acceptedCommentId = best.first.id;
+                      }
+                      final acceptEnabled = isPostOwner && _acceptedCommentId == null;
+
+                      if (commentsState.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (ordered.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            '아직 위로가 없어요.',
+                            style: TextStyle(
+                              color: Color(0xCCD7CCB9),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        itemCount: ordered.length,
+                        itemBuilder: (context, index) {
+                          final comment = ordered[index];
+                          final isAccepted = comment.id == _acceptedCommentId;
+                          final canDelete = isPostOwner || comment.authorId == currentUserId;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _CommentCard(
+                              comment: comment,
+                              isAccepted: isAccepted,
+                              canAdopt: acceptEnabled,
+                              canDelete: canDelete,
+                              onToggleLike: () => commentsCtrl.toggleLike(comment.id),
+                              onToggleAccept: acceptEnabled
+                                  ? () => _showAdoptConfirmDialog(context, comment.id, commentsCtrl)
+                                  : null,
+                              onDelete: () => _showDeleteCommentConfirmDialog(
+                                context,
+                                commentsCtrl: commentsCtrl,
+                                commentId: comment.id,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: _CommentInputBar(
+                    controller: _commentController,
+                    onSend: () => _submitComment(post.id),
+                  ),
+                ),
+              ],
             ),
-          ],
-        );
-  }
-
-  String _formatTime(DateTime time) {
-    final month = time.month.toString().padLeft(2, '0');
-    final day = time.day.toString().padLeft(2, '0');
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$month/$day $hour:$minute';
-  }
-
-  List<CommentItem> _orderedComments(
-      List<CommentItem> comments, String? acceptedId) {
-    if (acceptedId == null) return List<CommentItem>.from(comments);
-    final ordered = List<CommentItem>.from(comments);
-    final index = ordered.indexWhere((comment) => comment.id == acceptedId);
-    if (index <= 0) return ordered;
-    final accepted = ordered.removeAt(index);
-    ordered.insert(0, accepted);
-    return ordered;
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _PostDetailCard extends StatelessWidget {
-  const _PostDetailCard({
-    required this.body,
-    required this.isLiked,
-    required this.likeCount,
-    required this.onToggleLike,
+class _DialogPanel extends StatelessWidget {
+  const _DialogPanel({
+    required this.title,
+    required this.onCancel,
+    required this.onConfirm,
+    this.body,
+    this.confirmLabel,
+    this.destructiveLabel,
+    this.destructive = true,
   });
 
-  final String body;
-  final bool isLiked;
-  final int likeCount;
-  final VoidCallback onToggleLike;
+  final String title;
+  final String? body;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final String? confirmLabel;
+  final String? destructiveLabel;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final iconColor = isLiked
-        ? const Color(0xFFE25B5B)
-        : const Color(0xFFD7CCB9).withValues(alpha: 0.80);
+    final label = destructiveLabel ?? confirmLabel ?? '확인';
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.all(10),
+      width: 320,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
       decoration: BoxDecoration(
-        color: const Color(0x1AFFFFFF),
-        borderRadius: BorderRadius.circular(24),
+        color: const Color(0x1A171411),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x1FD7CCB9), width: 1),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            body,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontFamily: _readableBodyFont,
+            title,
+            style: const TextStyle(
+              color: Color(0xFFF2EBDD),
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 44,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: onToggleLike,
-                    icon: Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 20,
-                      color: iconColor,
-                    ),
-                    padding: EdgeInsets.zero,
-                    splashRadius: 22,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  likeCount.toString(),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: const Color(0xFFD7CCB9).withValues(alpha: 0.75),
-                  ),
-                ),
-                const Spacer(),
-              ],
+          if (body != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              body!,
+              style: const TextStyle(
+                color: Color(0xCCD7CCB9),
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: onCancel,
+                child: const Text('취소', style: TextStyle(color: Color(0x99D7CCB9))),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: onConfirm,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: destructive ? const Color(0xFFE25B5B) : const Color(0xFFF2EBDD),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -424,130 +578,165 @@ class _CommentCard extends StatelessWidget {
   const _CommentCard({
     required this.comment,
     required this.isAccepted,
-    required this.isPostOwner,
+    required this.canAdopt,
+    required this.canDelete,
     required this.onToggleLike,
     required this.onToggleAccept,
+    required this.onDelete,
   });
 
   final CommentItem comment;
   final bool isAccepted;
-  final bool isPostOwner;
+  final bool canAdopt;
+  final bool canDelete;
   final VoidCallback onToggleLike;
   final VoidCallback? onToggleAccept;
+  final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) {
-    final likeIcon = comment.isLiked ? Icons.favorite : Icons.favorite_border;
-    final likeColor = comment.isLiked
-        ? const Color(0xFFE25B5B)
-        : const Color(0xFFD7CCB9).withValues(alpha: 0.80);
-    final acceptIcon = isAccepted ? Icons.verified : Icons.verified_outlined;
-    final acceptColor = isAccepted
-        ? const Color(0xFFF2EBDD).withValues(alpha: 0.95)
-        : const Color(0xFFD7CCB9).withValues(alpha: 0.70);
+  Widget build(BuildContext context) {final theme = Theme.of(context);
 
-    return Stack(
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10),
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: const Color(0x1A171411),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0x1FD7CCB9), width: 1),
-          ),
-          child: Row(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0x1A171411),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x1FD7CCB9), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ 본문 + (권한) 채택/삭제 버튼(우측 밀착, 작은 크기)
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      comment.text,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontFamily: _readableBodyFont,
-                            fontSize: 13,
-                            height: 1.35,
-                          ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                child: Text(
+                  comment.text,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: _readableBodyFont,
+                    fontSize: 13,
+                    height: 1.35,
+                    color: const Color(0xFFF2EBDD).withValues(alpha: 0.95),
+                  ),
                 ),
               ),
-              if (isPostOwner) ...[
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: onToggleLike,
-                    icon: Icon(likeIcon, size: 18, color: likeColor),
-                    padding: EdgeInsets.zero,
-                    splashRadius: 22,
+              const SizedBox(width: 8),
+              if (isAccepted)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0x1AF2C94C),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0x33F2C94C)),
                   ),
-                ),
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified, size: 14, color: Color(0xFFF2C94C)),
+                      SizedBox(width: 4),
+                      Text(
+                        '채택됨',
+                        style: TextStyle(
+                          fontFamily: _readableBodyFont,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFF2C94C),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                if (canAdopt)
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: const Color(0xFFF2EBDD),
+                      textStyle: const TextStyle(
+                        fontFamily: _readableBodyFont,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                     onPressed: onToggleAccept,
-                    icon: Icon(acceptIcon, size: 18, color: acceptColor),
-                    padding: EdgeInsets.zero,
-                    splashRadius: 22,
+                    child: const Text('채택'),
                   ),
-                ),
-              ] else
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: onToggleLike,
-                    icon: Icon(likeIcon, size: 18, color: likeColor),
-                    padding: EdgeInsets.zero,
-                    splashRadius: 22,
+                if (canDelete)
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: const Color(0xFFF2EBDD),
+                      textStyle: const TextStyle(
+                        fontFamily: _readableBodyFont,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    onPressed: onDelete,
+                    child: const Text('삭제'),
                   ),
-                ),
+              ],
             ],
           ),
-        ),
-        if (isAccepted)
-          Positioned(
-            left: 16,
-            bottom: 6,
-            child: Container(
-              height: 20,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: const Color(0x24171411),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
-              ),
-              child: Row(
+          const SizedBox(height: 8),
+
+          // ✅ 공감(우측) - 기존 크기 유지
+          Row(
+            children: [
+              const Spacer(),
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.verified,
-                    size: 14,
-                    color: const Color(0xFFF2EBDD).withValues(alpha: 0.92),
+                  IconButton(
+                    onPressed: onToggleLike,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    icon: Icon(
+                      comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: comment.isLiked ? const Color(0xFFF2C94C) : const Color(0xFFD7CCB9),
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    '채택됨',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xEBF2EBDD),
+                  Text(
+                    '${comment.likeCount}',
+                   style: const TextStyle(
+                      fontFamily: _readableBodyFont,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFF2EBDD),
                     ),
                   ),
                 ],
               ),
+            ],
+          ),
+
+          // ✅ 작성 시간(작게)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              _fmtDateTime(comment.createdAt),
+              style: const TextStyle(
+                fontFamily: _readableBodyFont,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xCCD7CCB9),
+              ),
             ),
           ),
-      ],
+        ],
+      ),
     );
-  }
+   }
 }
 
 class _CommentInputBar extends StatelessWidget {
@@ -562,106 +751,63 @@ class _CommentInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 14),
       decoration: const BoxDecoration(
-        color: Colors.transparent,
+        color: Color(0x1A171411),
+        border: Border(top: BorderSide(color: Color(0x1FD7CCB9), width: 1)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0x24171411),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(
+                color: Color(0xFFF2EBDD),
+                fontFamily: _readableBodyFont,
               ),
-              child: TextField(
-                controller: controller,
-                maxLines: 1,
-                decoration: const InputDecoration(
-                  hintText: '댓글을 남겨보세요',
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xA6D7CCB9),
-                  ),
-                  border: InputBorder.none,
+              decoration: InputDecoration(
+                hintText: '위로를 남겨주세요…',
+                hintStyle: const TextStyle(color: Color(0xA6D7CCB9)),
+                filled: true,
+                fillColor: const Color(0x1A171411),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0x1FD7CCB9)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0x1FD7CCB9)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0x2ED7CCB9)),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onSend,
+              customBorder: const CircleBorder(),
+              child: Ink(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: Color(0x24171411),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.send_rounded,
+                  size: 18,
+                  color: const Color(0xFFD7CCB9).withValues(alpha: 0.9),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              onPressed: onSend,
-              icon: Icon(
-                Icons.send,
-                size: 18,
-                color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
-              ),
-              padding: EdgeInsets.zero,
-              splashRadius: 22,
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _TagRow extends StatelessWidget {
-  const _TagRow({required this.tags});
-
-  final List<String> tags;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (int i = 0; i < tags.length; i++) ...[
-            _TagChip(text: tags[i]),
-            if (i != tags.length - 1) const SizedBox(width: 6),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 110),
-      child: Container(
-        height: 22,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: const Color(0x24171411),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
-        ),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFD7CCB9).withValues(alpha: 0.92),
-            fontFamily: _readableBodyFont,
-          ),
-        ),
       ),
     );
   }

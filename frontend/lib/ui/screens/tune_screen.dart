@@ -106,7 +106,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
         text: '주파수를 송신 중입니다.',
       ),
     );
-    Overlay.of(context).insert(_overlayEntry!);
+    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
   }
 
   bool _canShowTagSnack() {
@@ -270,15 +270,23 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     BoardPost? post;
     bool apiSuccess = false;
     try {
-      post = await ref.read(boardControllerProvider.notifier).submitStory(
-            title: _titleController.text.trim(),
-            body: story,
-            tags: List<String>.from(_selectedTags),
-            publish: _publishToBoard,
-          );
+      final repo = ref.read(boardRepositoryProvider);
+      post = await repo.submitStory(
+        title: _titleController.text.trim(),
+        body: story,
+        tags: List<String>.from(_selectedTags),
+        publish: _publishToBoard,
+      );
+
+      // 리스트/상태 최신화는 컨트롤러에게 맡김(기존 UX 유지)
+      final boardCtrl = ref.read(boardControllerProvider.notifier);
+      await boardCtrl.refreshMine();
+      if (_publishToBoard) {
+        await boardCtrl.refreshOpen();
+      }
+
       apiSuccess = true;
     } catch (e) {
-      // API 실패 시 로그 (디버그용)
       debugPrint('submitStory failed: $e');
     }
 
@@ -296,6 +304,11 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
 
     // ✅ 5) 결과에 따라 분기
     if (apiSuccess && post != null) {
+
+      try {
+    await _audioPlayer.play(AssetSource('audio/receive_sparkle.wav'), volume: 0.5);
+    } catch (_) {}
+
       // 성공: theater 진입
       final allPosts = ref.read(boardControllerProvider).openPosts;
       final pins = _buildPins(allPosts, _publishToBoard ? post : null);
