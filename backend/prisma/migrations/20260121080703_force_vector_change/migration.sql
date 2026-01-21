@@ -1,0 +1,1 @@
+ALTER TABLE "Story" ALTER COLUMN "embedding" TYPE vector(384) USING "embedding"::vector(384);

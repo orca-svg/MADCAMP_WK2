@@ -12,6 +12,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  embedding-service:
+    build: ./embedding_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./embedding_service:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
   backend:
     build:
       context: ./backend
@@ -20,8 +30,11 @@ services:
       - "3000:3000"
     env_file:
       - ./backend/.env
+    environment:
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8000
     depends_on:
       - db
+      - embedding-service
     restart: always
 
   studio:
