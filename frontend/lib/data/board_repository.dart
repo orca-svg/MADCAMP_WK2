@@ -135,7 +135,6 @@ class ApiBoardRepository implements BoardRepository {
   Future<List<BoardPost>> fetchMine() async {
     final me = await _client.getMe();
     final myUserId = _userIdFromMe(me['user'] as Map<String, dynamic>?);
-    if (myUserId.isEmpty) return const [];
 
     // 백엔드에 "내 글" endpoint가 있는지 불명확해서:
     // 1) /stories?mine=true 시도

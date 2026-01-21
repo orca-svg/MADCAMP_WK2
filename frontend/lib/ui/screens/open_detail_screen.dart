@@ -128,7 +128,11 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     if (confirmed == true) {
       try {
         await commentsCtrl.accept(commentId);
-        setState(() => _acceptedCommentId = commentId);
+        await commentsCtrl.refresh();
+        if (mounted) {
+          ref.invalidate(boardPostProvider(widget.postId)); // 스토리 상세 갱신
+          setState(() => _acceptedCommentId = commentId);
+        }
       } catch (e) {
         if (!mounted) return;
         // Show error snackbar

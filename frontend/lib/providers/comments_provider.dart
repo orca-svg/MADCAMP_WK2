@@ -75,6 +75,7 @@ class CommentsController extends StateNotifier<CommentsState> {
   Future<void> accept(String commentId) async {
     // Propagate errors so UI can show appropriate message
     await _repo.acceptComment(postId, commentId);
+    await refresh();
   }
 }
 

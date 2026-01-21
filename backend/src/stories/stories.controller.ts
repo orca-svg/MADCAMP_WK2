@@ -8,6 +8,7 @@ import {
   Delete,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
@@ -37,8 +38,9 @@ export class StoriesController {
   @UseGuards(SessionAuthGuard)
   @ApiGetResponse(StoryEntity, '공개된 사연들 조회하기')
   @ResponseMessage('공개된 사연들을 성공적으로 조회했습니다.')
-  findAll(@Req() req: any) {
-    return this.storiesService.findAll(req.user.id);
+  findAll(@Req() req: any, @Query('mine') mine?: string) {
+    const mineOnly = mine === 'true' || mine === '1';
+    return this.storiesService.findAll(req.user.id, mineOnly);
   }
 
   @Get(':id')

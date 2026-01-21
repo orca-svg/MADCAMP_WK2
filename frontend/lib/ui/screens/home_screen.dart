@@ -103,6 +103,7 @@ class _PowerOnContent extends StatelessWidget {
   Widget build(BuildContext context) {
     // ✅ 항상 날짜를 표시해야 하므로, firstCheckTime이 없으면 오늘 날짜 사용
     final sentAt = messageState.firstCheckTime ?? DateTime.now();
+    final message = (messageState.message ?? '').trim();
 
     return Stack(
       children: [
@@ -122,7 +123,7 @@ class _PowerOnContent extends StatelessWidget {
             Expanded(
               child: Center(
                 child: Text(
-                  messageState.message ?? '',
+                  message.isEmpty ? '위로 메시지를 불러오는 중이에요.' : message,
                   textAlign: TextAlign.center,
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/board_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../widgets/post_preview_card.dart';
 
 const _filterTags = [
@@ -35,6 +36,7 @@ class _OpenScreenState extends ConsumerState<OpenScreen> {
   Timer? _debounce;
   String _query = '';
   String _selectedTag = '전체';
+  bool _didLoadOpen = false;
 
   @override
   void dispose() {
@@ -65,6 +67,13 @@ class _OpenScreenState extends ConsumerState<OpenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    if (!_didLoadOpen && authState.isSignedIn && !authState.isLoading) {
+      _didLoadOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(boardControllerProvider.notifier).refreshOpen();
+      });
+    }
     final posts = ref.watch(boardControllerProvider).openPosts;
     final theme = Theme.of(context);
     final normalizedQuery = _query.toLowerCase();

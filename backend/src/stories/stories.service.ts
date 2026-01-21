@@ -84,9 +84,10 @@ export class StoriesService {
    * - isLiked: 현재 유저가 좋아요 했는지
    * - acceptedCommentId: best comment id (없으면 null)
    */
-  async findAll(userId: string) {
+  async findAll(userId: string, mineOnly = false) {
+    const where = mineOnly ? { userId } : { isPublic: true };
     const stories = await this.prisma.story.findMany({
-      where: { isPublic: true },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { nickname: true, image: true, id: true } },

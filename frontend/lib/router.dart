@@ -124,7 +124,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     context.go('/home');
                   }
                   if (nextState) {
-                    ref.read(dailyMessageProvider.notifier).power();
+                    await ref.read(dailyMessageProvider.notifier).power();
                   }
                 },
               );
