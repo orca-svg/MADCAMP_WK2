@@ -254,7 +254,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                               commentCount: 0,
                               empathyCount: post.empathyCount,
                               isAccepted: post.acceptedCommentId != null,
-                              onTap: () => context.go('/my/detail/${post.id}'),
+                              onTap: () => context.push('/my/detail/${post.id}'),
                             ),
                           ),
                       ],
