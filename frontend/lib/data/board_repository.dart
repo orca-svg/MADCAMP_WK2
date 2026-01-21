@@ -175,7 +175,7 @@ class ApiBoardRepository implements BoardRepository {
       'title': title.isEmpty ? '새로운 사연' : title,
       'content': body,
       'isPublic': publish,
-      'tags': tags,
+      'tagNames': tags,
     });
 
     final obj = extractObject(res.data);
@@ -190,6 +190,27 @@ class ApiBoardRepository implements BoardRepository {
     // 백엔드가 story를 다시 내려주면 반영
     try {
       final obj = extractObject(res.data);
+      final liked = obj['liked'];
+      final likeCountValue = obj['likeCount'];
+      if (liked is bool && likeCountValue != null) {
+        final parsedCount = likeCountValue is int
+            ? likeCountValue
+            : int.tryParse(likeCountValue.toString()) ?? 0;
+        return BoardPost(
+          id: storyId,
+          title: '',
+          body: '',
+          tags: const [],
+          createdAt: DateTime.now(),
+          isMine: false,
+          authorId: null,
+          likeCount: parsedCount,
+          likedByMe: liked,
+        );
+      }
+      if (obj['id'] == null || obj['id'].toString().isEmpty) {
+        throw StateError('Missing story payload');
+      }
       final s = ApiStory.fromJson(obj);
       final me = await _client.getMe();
       final myUserId = _userIdFromMe(me['user'] as Map<String, dynamic>?);

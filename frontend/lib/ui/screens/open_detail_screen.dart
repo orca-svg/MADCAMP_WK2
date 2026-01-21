@@ -43,6 +43,7 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
   bool _postLiked = false;
   int _postLikeCount = 0;
   String? _initializedPostId;
+  BoardPost? _cachedPost;
 
   @override
   void dispose() {
@@ -54,8 +55,7 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     if (_initializedPostId == post.id) return;
     _initializedPostId = post.id;
     _postLikeCount = post.empathyCount;
-    _postLiked =
-        currentUserId.isNotEmpty && post.likedUserIds.contains(currentUserId);
+    _postLiked = post.likedByMe;
     _acceptedCommentId = post.acceptedCommentId;
   }
 
@@ -158,33 +158,33 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     final authState = ref.watch(authProvider);
     final theme = Theme.of(context);
 
-    return postAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Text(
-          '주파수를 불러올 수 없어요.',
-          style: theme.textTheme.titleMedium,
-        ),
-      ),
-      data: (post) {
-        if (post == null) {
-          return Center(
-            child: Text(
-              '주파수를 찾을 수 없어요.',
-              style: theme.textTheme.titleMedium,
-            ),
-          );
-        }
+    final valuePost = postAsync.value;
+    if (valuePost != null) {
+      _cachedPost = valuePost;
+    }
+    final post = _cachedPost;
 
-        final currentUserId = authState.userIdLikeKey;
-        _ensureInitialized(post, currentUserId);
-        final isPostOwner = currentUserId.isNotEmpty &&
-            post.authorId != null &&
-            post.authorId == currentUserId;
+    if (post == null) {
+      if (postAsync.hasError) {
+        return Center(
+          child: Text(
+            '주파수를 불러올 수 없어요. ${postAsync.error}',
+            style: theme.textTheme.titleMedium,
+          ),
+        );
+      }
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    final currentUserId = authState.userIdLikeKey;
+    _ensureInitialized(post, currentUserId);
+    final isPostOwner = currentUserId.isNotEmpty &&
+        post.authorId != null &&
+        post.authorId == currentUserId;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Column(
@@ -318,8 +318,6 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
             ),
           ],
         );
-      },
-    );
   }
 
   String _formatTime(DateTime time) {
