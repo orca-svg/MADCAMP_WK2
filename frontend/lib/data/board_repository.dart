@@ -175,7 +175,7 @@ class ApiBoardRepository implements BoardRepository {
       'title': title.isEmpty ? '새로운 사연' : title,
       'content': body,
       'isPublic': publish,
-      'tags': tags,
+      'tagNames': tags,
     });
 
     final obj = extractObject(res.data);
