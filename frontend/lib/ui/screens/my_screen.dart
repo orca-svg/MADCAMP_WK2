@@ -204,7 +204,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                           child: _CountButton(
                             label: '북마크',
                             count: bookmarkCount,
-                            onTap: () => debugPrint('TODO: open bookmarked comforts list'),
+                            onTap: () => context.push('/my/bookmarks'),
                           ),
                         ),
                       ],

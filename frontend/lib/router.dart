@@ -14,6 +14,7 @@ import 'ui/screens/my_screen.dart';
 import 'ui/screens/open_detail_screen.dart';
 import 'ui/screens/open_screen.dart';
 import 'ui/screens/tune_screen.dart';
+import 'ui/screens/bookmarks_screen.dart';
 import 'ui/shell/radio_app_shell.dart';
 
 class _TabConfig {
@@ -199,6 +200,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'comforts',
                 builder: (context, state) => const AdoptedComfortsScreen(),
+              ),
+              GoRoute(
+                  path: '/my/bookmarks',
+                  builder: (context, state) => const BookmarksScreen(),
               ),
             ],
           ),
