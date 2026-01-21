@@ -35,7 +35,6 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     _authSub = ref.listenManual<AuthState>(
       authProvider,
       (prev, next) async {
-        // 로그아웃/세션 해제 시 재로드 가능
         if (!next.isSignedIn) {
           _didLoadMine = false;
           _didRetryMine = false;
@@ -43,11 +42,9 @@ class _MyScreenState extends ConsumerState<MyScreen> {
           return;
         }
 
-        // 로그인 완료(로딩 종료) 시점에 1회 로드
         if (_didLoadMine) return;
         if (next.isSignedIn && !next.isLoading) {
           _didLoadMine = true;
-
           await _refreshMineSafely(reason: 'auth_listener');
         }
       },
@@ -74,21 +71,41 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     super.dispose();
   }
 
+  /// ✅ Google Auth 기반 표시명: name 우선 → nickname → email(@앞) → displayName
+  String _nicknameFromAuth(AuthState state) {
+    final u = state.user;
+    if (u == null) return state.displayName;
+
+    final name = (u['name'] ?? '').toString().trim();
+    if (name.isNotEmpty) return name;
+
+    final nick = (u['nickname'] ?? '').toString().trim();
+    if (nick.isNotEmpty) return nick;
+
+    final email = (u['email'] ?? '').toString().trim();
+    if (email.isNotEmpty) {
+      final at = email.indexOf('@');
+      if (at > 0) return email.substring(0, at);
+      return email;
+    }
+
+    return state.displayName;
+  }
+
   Future<void> _refreshMineSafely({required String reason}) async {
-    // ✅ 세션/쿠키 반영 타이밍 방어(짧은 지연)
     await Future<void>.delayed(const Duration(milliseconds: 80));
     if (!mounted) return;
 
     debugPrint('[MyScreen] refreshMine() start ($reason)');
     await ref.read(boardControllerProvider.notifier).refreshMine();
 
-    // ✅ provider가 파생/캐시된 경우를 대비해 UI 재계산 강제
+    // ✅ provider 캐시/파생 대비: UI 재계산 강제
     ref.invalidate(myPostsProvider);
 
-    // ✅ 결과가 여전히 0이면(갱신 누락/세션 타이밍) 1회만 재시도
     final afterFirst = ref.read(myPostsProvider);
     debugPrint('[MyScreen] refreshMine() done ($reason) -> myPosts=${afterFirst.length}');
 
+    // ✅ 결과가 0이면 1회만 재시도
     if (afterFirst.isEmpty && !_didRetryMine) {
       _didRetryMine = true;
       await Future<void>.delayed(const Duration(milliseconds: 350));
@@ -108,15 +125,15 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     final authState = ref.watch(authProvider);
     final myPosts = ref.watch(myPostsProvider);
     final bookmarks = ref.watch(bookmarksProvider);
-
-    debugPrint('[MyScreen] build: myPosts=${myPosts.length}');
-
     final theme = Theme.of(context);
-    final nickname = authState.displayName;
+
+    final nickname = _nicknameFromAuth(authState);
 
     final myPostsCount = myPosts.length;
     final acceptedCount = myPosts.where((p) => p.acceptedCommentId != null).length;
     final bookmarkCount = bookmarks.length;
+
+    debugPrint('[MyScreen] build: myPosts=${myPosts.length}');
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -125,10 +142,11 @@ class _MyScreenState extends ConsumerState<MyScreen> {
       },
       child: CustomScrollView(
         slivers: [
-          // ✅ dev2 UI: 헤더는 단색(텍스처 X)
+          // ✅ 오버플로우 해결: 헤더 높이를 충분히 확보 + 내부는 하나의 rounded 배경
           SliverPersistentHeader(
             pinned: true,
             delegate: _MyHeaderDelegate(
+              nickname: nickname,
               onLogout: authState.isSignedIn
                   ? () async {
                       if (_loggingOut) return;
@@ -141,7 +159,6 @@ class _MyScreenState extends ConsumerState<MyScreen> {
 
                       ref.read(dailyMessageProvider.notifier).resetSession();
 
-                      // ✅ 재로그인 시 내 글 다시 불러오도록 플래그 리셋
                       _didLoadMine = false;
                       _didRetryMine = false;
 
@@ -156,24 +173,13 @@ class _MyScreenState extends ConsumerState<MyScreen> {
             ),
           ),
 
-          // ✅ dev2 UI: 헤더 아래 영역도 단순 패딩 구성(텍스처 래핑 X)
+          // ✅ 닉네임 텍스트는 헤더로 이동했으므로 아래에서는 제거
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    '$nickname님이 라디오에 함께하고 있어요.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFFD7CCB9).withOpacity(0.86),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   SizedBox(
                     height: 54,
                     child: Row(
@@ -251,10 +257,10 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                               title: post.title,
                               tags: post.tags,
                               createdAt: post.createdAt,
-                              commentCount: 0,
                               empathyCount: post.empathyCount,
                               isAccepted: post.acceptedCommentId != null,
-                              onTap: () => context.go('/my/detail/${post.id}'),
+                              // ✅ 요구사항: 글 누르면 상세 라우팅
+                              onTap: () => context.push('/my/detail/${post.id}'),
                             ),
                           ),
                       ],
@@ -267,77 +273,133 @@ class _MyScreenState extends ConsumerState<MyScreen> {
   }
 }
 
+/// ✅ 헤더는 "하나의 둥근 배경" 안에
+/// - MY RADIO (headlineMedium)
+/// - 로그아웃(옅은 빨강 배경)
+/// - 닉네임 포함 문구
+/// 그리고 구분선 제거
 class _MyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _MyHeaderDelegate({required this.onLogout});
+  _MyHeaderDelegate({
+    required this.nickname,
+    required this.onLogout,
+  });
 
+  final String nickname;
   final Future<void> Function()? onLogout;
 
-  @override
-  double get minExtent => 52;
+  // ✅ 높이는 넉넉히 주되, 실제 제약이 더 작아도 Stack+Clip으로 overflow 방지
+  static const double _h = 92;
 
   @override
-  double get maxExtent => 52;
+  double get minExtent => _h;
+
+  @override
+  double get maxExtent => _h;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final theme = Theme.of(context);
 
-    // ✅ dev2 UI: 단색 헤더 + 하단 라인
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      color: const Color(0xE61F1A17),
-      child: Stack(
-        children: [
-          Row(
+    // headlineMedium이 기기/테마에 따라 커질 수 있으니 height를 낮춰 안정화
+    final titleStyle =
+        (theme.textTheme.headlineMedium ?? theme.textTheme.titleLarge)?.copyWith(
+      fontWeight: FontWeight.w900,
+      color: const Color(0xFFF2EBDD),
+      height: 0.95,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xE61F1A17),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0x22D7CCB9), width: 1),
+          ),
+          // ✅ Column 대신 Stack: 상단 Row + 하단 텍스트로 고정 배치
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
             children: [
-              Text(
-                'MY RADIO',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFFF2EBDD).withOpacity(0.94),
-                ),
-              ),
-              const Spacer(),
-              if (onLogout != null)
-                InkWell(
-                  onTap: () => onLogout?.call(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x33D7CCB9), width: 1),
-                    ),
-                    child: const Text(
-                      '로그아웃',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFD7CCB9),
+              // 상단 Row
+              Positioned(
+                left: 14,
+                right: 14,
+                top: 10,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'MY RADIO',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    if (onLogout != null)
+                      InkWell(
+                        onTap: () => onLogout?.call(),
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            // ✅ 옅은 빨강 배경
+                            color: const Color(0x33FF3B30),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0x55FF3B30),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Text(
+                            '로그아웃',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFFFD2CE),
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // 하단 닉네임 텍스트
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 10,
+                child: Text(
+                  '$nickname님이 라디오에 함께하고 있어요.',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                    color: const Color(0xFFD7CCB9).withOpacity(0.86),
                   ),
                 ),
+              ),
             ],
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 1,
-              color: const Color(0x22D7CCB9),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   @override
   bool shouldRebuild(covariant _MyHeaderDelegate oldDelegate) {
-    return oldDelegate.onLogout != onLogout;
+    return oldDelegate.nickname != nickname || oldDelegate.onLogout != onLogout;
   }
 }
 
@@ -363,47 +425,51 @@ class _CountButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 버튼 구분감: border
     return Material(
       color: const Color(0x14171411),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFD7CCB9),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFD7CCB9),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  count.toString(),
-                  maxLines: 1,
-                  softWrap: false,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFF2EBDD),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    count.toString(),
+                    maxLines: 1,
+                    softWrap: false,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFF2EBDD),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -420,6 +486,13 @@ class _ScoreGauge extends StatelessWidget {
     final theme = Theme.of(context);
     final percent = (score / 100).clamp(0.0, 1.0);
 
+    // ✅ 점수↑일수록 색 자체가 진해지도록
+    final fillColor = Color.lerp(
+      const Color(0xFFB9AC98),
+      const Color(0xFF6E4F37),
+      percent,
+    )!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -429,10 +502,7 @@ class _ScoreGauge extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0x24171411),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: const Color(0x2ED7CCB9),
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -442,7 +512,7 @@ class _ScoreGauge extends StatelessWidget {
                 widthFactor: percent,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD7CCB9).withOpacity(0.55),
+                    color: fillColor,
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -469,7 +539,6 @@ class _MyPostCard extends StatelessWidget {
     required this.title,
     required this.tags,
     required this.createdAt,
-    required this.commentCount,
     required this.empathyCount,
     required this.isAccepted,
     required this.onTap,
@@ -478,7 +547,6 @@ class _MyPostCard extends StatelessWidget {
   final String title;
   final List<String> tags;
   final DateTime createdAt;
-  final int commentCount;
   final int empathyCount;
   final bool isAccepted;
   final VoidCallback onTap;
@@ -486,7 +554,10 @@ class _MyPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final acceptColor = isAccepted
+
+    // ✅ 미채택/채택: 텍스트 대신 아이콘(빈/채움)
+    final icon = isAccepted ? Icons.check_circle : Icons.check_circle_outline;
+    final iconColor = isAccepted
         ? const Color(0xFFF2EBDD).withOpacity(0.95)
         : const Color(0xFFD7CCB9).withOpacity(0.55);
 
@@ -520,14 +591,7 @@ class _MyPostCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    isAccepted ? '채택됨' : '미채택',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: acceptColor,
-                    ),
-                  ),
+                  Icon(icon, size: 18, color: iconColor),
                 ],
               ),
               const SizedBox(height: 8),
