@@ -15,6 +15,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final messageState = ref.watch(dailyMessageProvider);
+    debugPrint(
+      '[HomeScreen] messageId=${messageState.messageId} message=${messageState.message}',
+    );
     final bookmarks = ref.watch(bookmarksProvider);
     final powerOn = ref.watch(powerStateProvider);
     final theme = Theme.of(context);

@@ -11,6 +11,7 @@ const _messageIdKey = 'daily_message_id';
 const _messageDateKey = 'daily_message_date';
 const _messageSeenAtKey = 'daily_message_seen_at';
 const _messageContentKey = 'daily_message_content';
+const _messageSourceKey = 'daily_message_source';
 
 class DailyMessageState {
   final String? messageId;
@@ -62,13 +63,26 @@ class DailyMessageController extends StateNotifier<DailyMessageState> {
 
   Future<void> power() async {
     final today = _todayStamp();
-    final storedDate = _prefs.getString(_messageDateKey);
+    var storedDate = _prefs.getString(_messageDateKey);
     final rawId = _prefs.get(_messageIdKey);
     final storedId = rawId is String
         ? rawId
         : (rawId is int ? rawId.toString() : null);
-    final storedMessage = _prefs.getString(_messageContentKey);
-    final storedSeenAt = _prefs.getString(_messageSeenAtKey);
+    var storedMessage = _prefs.getString(_messageContentKey);
+    var storedSeenAt = _prefs.getString(_messageSeenAtKey);
+    final source = _prefs.getString(_messageSourceKey);
+
+    final isLegacySource = source != 'api';
+    final isLegacyId = storedId != null && !_looksLikeUuid(storedId);
+    if (isLegacySource || isLegacyId) {
+      await _prefs.remove(_messageDateKey);
+      await _prefs.remove(_messageIdKey);
+      await _prefs.remove(_messageContentKey);
+      await _prefs.remove(_messageSeenAtKey);
+      storedDate = null;
+      storedMessage = null;
+      storedSeenAt = null;
+    }
 
     if (storedDate == today && storedId != null && storedMessage != null) {
       final seenAt = storedSeenAt != null
@@ -105,7 +119,9 @@ class DailyMessageController extends StateNotifier<DailyMessageState> {
       _prefs.setString(_messageIdKey, id);
       _prefs.setString(_messageContentKey, message);
       _prefs.setString(_messageSeenAtKey, seenAt.toIso8601String());
+      _prefs.setString(_messageSourceKey, 'api');
 
+      debugPrint('dailyMessage set id=$id message=$message');
       state = DailyMessageState(
         messageId: id,
         message: message,
@@ -130,6 +146,12 @@ class DailyMessageController extends StateNotifier<DailyMessageState> {
     return '${now.year.toString().padLeft(4, '0')}-'
         '${now.month.toString().padLeft(2, '0')}-'
         '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  bool _looksLikeUuid(String value) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(value);
   }
 }
 

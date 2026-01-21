@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api_client.dart';
@@ -33,7 +34,9 @@ class BookmarksController extends StateNotifier<Set<String>> {
 
   Future<void> refresh() async {
     try {
+      debugPrint('bookmarks refresh baseUrl=${_client.dio.options.baseUrl}');
       final res = await _dio.get('/bookmarks');
+      debugPrint('bookmarks refresh response=${res.data}');
       final data = res.data;
       final items = data is List
           ? data
@@ -66,7 +69,13 @@ class BookmarksController extends StateNotifier<Set<String>> {
       } else {
         await _dio.post('/bookmarks', data: {'adviceId': adviceId});
       }
-    } catch (_) {
+    } on DioException catch (e) {
+      debugPrint(
+        'bookmarks toggle error status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+      await refresh();
+    } catch (e) {
+      debugPrint('bookmarks toggle error=$e');
       await refresh();
     }
   }
