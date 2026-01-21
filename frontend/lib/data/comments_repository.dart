@@ -55,6 +55,7 @@ class AdoptedComment {
   final int likeCount;
   final DateTime createdAt;
   final String storyId;
+  
 
   /// ✅ 있을 수도/없을 수도 있는 값이라 UI에서 dynamic-safe로 처리합니다.
   final String storyTitle;
