@@ -164,6 +164,7 @@ export class StoriesService {
 
     return {
       id: story.id,
+      userId: story.userId, // ✅ 사연 작성자 ID 명시적 반환
       title: story.title,
       content: story.content,
       isPublic: story.isPublic,
@@ -175,6 +176,7 @@ export class StoriesService {
       acceptedCommentId: accepted,
       comments: story.comments.map((c) => ({
         id: c.id,
+        userId: c.userId, // ✅ 댓글 작성자 ID 명시적 반환
         content: c.content,
         isBest: c.isBest,
         likeCount: c.likeCount,

@@ -232,7 +232,9 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
     _ensureInitialized(post);
 
     final currentUserId = authState.userIdLikeKey;
-    final isPostOwner = (post.authorId != null && post.authorId == currentUserId) || post.isMine;
+    // 사연 작성자 여부 판단: authorId가 유효하고 currentUserId와 일치하거나, isMine이 true
+    final authorIdValid = post.authorId != null && post.authorId!.isNotEmpty;
+    final isPostOwner = (authorIdValid && post.authorId == currentUserId) || post.isMine;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
