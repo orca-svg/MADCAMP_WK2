@@ -76,7 +76,7 @@ model Story {
   title     String
   content   String   @db.Text
   isPublic  Boolean  @default(true)
-  embedding Unsupported("vector(1536)")?
+  embedding Unsupported("vector(384)")?
   likeCount Int       @default(0)
 
   userId    String
