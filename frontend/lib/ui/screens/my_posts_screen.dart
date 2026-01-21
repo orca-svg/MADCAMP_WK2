@@ -35,31 +35,15 @@ class MyPostsScreen extends ConsumerWidget {
       decoration: _speakerTextureDecoration(),
       child: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => context.pop(),
-                  child: const Icon(
-                    Icons.arrow_back_ios,
-                    size: 20,
-                    color: Color(0xFFD7CCB9),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '내가 공유한 글',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFF2EBDD),
-                  ),
-                ),
-              ],
+          // Header - matches bookmarks screen style
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            child: _HeaderCard(
+              title: '내가 공유한 글',
+              subtitle: '공유한 글 ${myPosts.length}개',
+              onBack: () => context.pop(),
             ),
           ),
-          const Divider(height: 1, color: Color(0x22D7CCB9)),
           // List
           Expanded(
             child: myPosts.isEmpty
@@ -152,6 +136,14 @@ class _PostRow extends StatelessWidget {
                     const SizedBox(width: 8),
                   ],
                   const Spacer(),
+                  // Comment count
+                  const Icon(Icons.chat_bubble_outline, size: 12, color: Color(0x99D7CCB9)),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${post.commentCount}',
+                    style: const TextStyle(fontSize: 10, color: Color(0x99D7CCB9)),
+                  ),
+                  const SizedBox(width: 10),
                   // Like count
                   const Icon(Icons.favorite_border, size: 12, color: Color(0x99D7CCB9)),
                   const SizedBox(width: 3),
@@ -176,5 +168,81 @@ class _PostRow extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({
+    required this.title,
+    required this.subtitle,
+    required this.onBack,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xE61F1A17),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x22D7CCB9), width: 1),
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: onBack,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0x14171411),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 16,
+                color: Color(0xFFD7CCB9),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (theme.textTheme.headlineSmall ?? theme.textTheme.titleLarge)?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFF2EBDD),
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFD7CCB9).withValues(alpha: 0.80),
+                    height: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

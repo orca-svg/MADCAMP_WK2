@@ -10,6 +10,7 @@ class PostPreviewCard extends StatelessWidget {
     required this.createdAt,
     required this.tags,
     this.likeCount = 0,
+    this.commentCount = 0,
     this.isAdopted = false,
     this.onTap,
   });
@@ -19,6 +20,7 @@ class PostPreviewCard extends StatelessWidget {
   final DateTime createdAt;
   final List<String> tags;
   final int likeCount;
+  final int commentCount;
   final bool isAdopted;
   final VoidCallback? onTap;
 
@@ -105,6 +107,14 @@ class PostPreviewCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    // Stats: comment count
+                    Icon(Icons.chat_bubble_outline, size: 12, color: statColor),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$commentCount',
+                      style: TextStyle(fontSize: 10, color: statColor),
+                    ),
+                    const SizedBox(width: 10),
                     // Stats: like count
                     Icon(Icons.favorite_border, size: 12, color: statColor),
                     const SizedBox(width: 3),

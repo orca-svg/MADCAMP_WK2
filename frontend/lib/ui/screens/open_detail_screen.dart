@@ -242,41 +242,50 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ 상단: 목록으로/극장으로 + (작성자만) 사연 삭제
+              // ✅ 상단: 목록으로/극장으로
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => context.pop(),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chevron_left,
+                          size: 18,
+                          color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
+                        ),
+                        Text(
+                          widget.fromTheater ? '극장으로' : '목록으로',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFD7CCB9).withValues(alpha: 0.90),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ✅ 제목 + (작성자만) 삭제 버튼
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            if (widget.fromTheater) {
-                              context.pop();
-                            } else {
-                              context.pop();
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(10),
-                          child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.chevron_left,
-                              size: 18,
-                              color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
-                            ),
-                            Text(
-                              widget.fromTheater ? '극장으로' : '목록으로',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFD7CCB9).withValues(alpha: 0.90),
-                              ),
-                            ),
-                          ],
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Text(
+                        post.title,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontFamily: _readableBodyFont,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFFF2EBDD),
                         ),
                       ),
                     ),
@@ -284,38 +293,26 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                   if (isPostOwner)
                     TextButton(
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        foregroundColor: const Color(0xFFF2EBDD),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: const Color(0xFFD7CCB9),
                         textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                           fontFamily: _readableBodyFont,
                         ),
                       ),
-                    onPressed: () => _showDeleteStoryConfirmDialog(
+                      onPressed: () => _showDeleteStoryConfirmDialog(
                         context,
                         boardCtrl: boardCtrl,
                         storyId: post.id,
                       ),
-                      child: const Text('사연 삭제'),
+                      child: const Text('삭제'),
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
-
-              // ✅ 제목 (좌측 10px 여백)
-              Padding(
-                padding: const EdgeInsets.only(left: 10),
-                child: Text(
-                  post.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontFamily: _readableBodyFont,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFFF2EBDD),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ✅ 태그 (좌측 10px 여백)
               if (post.tags.isNotEmpty)
@@ -448,7 +445,7 @@ const SizedBox(height: 8),
                       }
 
                       return ListView.builder(
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        padding: const EdgeInsets.only(top: 6, bottom: 6),
                         itemCount: ordered.length,
                         itemBuilder: (context, index) {
                           final comment = ordered[index];
@@ -456,7 +453,7 @@ const SizedBox(height: 8),
                           final canDelete = isPostOwner || comment.authorId == currentUserId;
 
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(bottom: 4),
                             child: _CommentCard(
                               comment: comment,
                               isAccepted: isAccepted,
@@ -594,11 +591,12 @@ class _CommentCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) {final theme = Theme.of(context);
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: const Color(0x1A171411),
         borderRadius: BorderRadius.circular(14),
@@ -686,52 +684,42 @@ class _CommentCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
-          // ✅ 공감(우측) - 기존 크기 유지
+          // ✅ 공감 + 작성 시간(우측) - compact
           Row(
             children: [
+              Text(
+                _fmtDateTime(comment.createdAt),
+                style: const TextStyle(
+                  fontFamily: _readableBodyFont,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0x99D7CCB9),
+                ),
+              ),
               const Spacer(),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: onToggleLike,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                    icon: Icon(
-                      comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 20,
-                      color: comment.isLiked ? const Color(0xFFF2C94C) : const Color(0xFFD7CCB9),
-                    ),
-                  ),
-                  Text(
-                    '${comment.likeCount}',
-                   style: const TextStyle(
-                      fontFamily: _readableBodyFont,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFFF2EBDD),
-                    ),
-                  ),
-                ],
+              IconButton(
+                onPressed: onToggleLike,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                icon: Icon(
+                  comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                  size: 14,
+                  color: comment.isLiked ? const Color(0xFFF2C94C) : const Color(0xFFD7CCB9),
+                ),
+              ),
+              Text(
+                '${comment.likeCount}',
+                style: const TextStyle(
+                  fontFamily: _readableBodyFont,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF2EBDD),
+                ),
               ),
             ],
-          ),
-
-          // ✅ 작성 시간(작게)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              _fmtDateTime(comment.createdAt),
-              style: const TextStyle(
-                fontFamily: _readableBodyFont,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xCCD7CCB9),
-              ),
-            ),
           ),
         ],
       ),

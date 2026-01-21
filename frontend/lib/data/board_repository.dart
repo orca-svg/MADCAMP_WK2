@@ -14,8 +14,10 @@ class BoardPost {
     required this.isMine,
     required this.authorId,
     this.likeCount = 0,
+    this.commentCount = 0,
     this.likedByMe = false,
     this.acceptedCommentId,
+    this.isPublic = true,
   });
 
   final String id;
@@ -32,11 +34,17 @@ class BoardPost {
   /// 백엔드 likeCount
   final int likeCount;
 
+  /// 백엔드 commentCount
+  final int commentCount;
+
   /// 백엔드가 내려주면 반영, 없으면 토글 후 optimistic 업데이트
   final bool likedByMe;
 
   /// 채택된 댓글 ID (백엔드에서 isBest=true인 댓글)
   final String? acceptedCommentId;
+
+  /// 공개 여부
+  final bool isPublic;
 
   /// empathyCount는 likeCount의 alias (UI 호환용)
   int get empathyCount => likeCount;
@@ -47,6 +55,7 @@ class BoardPost {
 
   BoardPost copyWith({
     int? likeCount,
+    int? commentCount,
     bool? likedByMe,
     String? acceptedCommentId,
   }) {
@@ -59,8 +68,10 @@ class BoardPost {
       isMine: isMine,
       authorId: authorId,
       likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
       likedByMe: likedByMe ?? this.likedByMe,
       acceptedCommentId: acceptedCommentId ?? this.acceptedCommentId,
+      isPublic: isPublic,
     );
   }
 }
@@ -113,8 +124,10 @@ class ApiBoardRepository implements BoardRepository {
       isMine: isMine,
       authorId: s.userId,
       likeCount: s.likeCount,
+      commentCount: s.commentCount,
       likedByMe: s.likedByMe ?? false,
       acceptedCommentId: acceptedCommentId ?? s.acceptedCommentId,
+      isPublic: s.isPublic,
     );
   }
 

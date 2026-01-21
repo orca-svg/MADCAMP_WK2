@@ -150,5 +150,6 @@ final boardPostProvider = FutureProvider.family<BoardPost?, String>((ref, id) as
 });
 
 final myPostsProvider = Provider<List<BoardPost>>((ref) {
-  return ref.watch(boardControllerProvider).myPosts;
+  // R7: "내가 공유한 글" 에는 isPublic == true 인 글만 표시
+  return ref.watch(boardControllerProvider).myPosts.where((p) => p.isPublic).toList();
 });

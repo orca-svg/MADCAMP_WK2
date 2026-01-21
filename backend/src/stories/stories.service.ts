@@ -130,6 +130,7 @@ export class StoriesService {
         tags: true,
         likes: { where: { userId }, take: 1 },
         comments: { where: { isBest: true }, select: { id: true }, take: 1 },
+        _count: { select: { comments: true } },
       },
     });
 
@@ -217,6 +218,7 @@ export class StoriesService {
       content: story.content,
       isPublic: story.isPublic,
       likeCount: story.likeCount,
+      commentCount: story._count?.comments ?? 0,
       createdAt: story.createdAt,
       user: story.user
         ? { id: story.user.id, nickname: story.user.nickname, image: story.user.image }

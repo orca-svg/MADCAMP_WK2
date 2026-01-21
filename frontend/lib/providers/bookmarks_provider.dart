@@ -79,20 +79,16 @@ class BookmarksController extends StateNotifier<Set<String>> {
 
   /// Returns sorted list of metadata (newest first).
   /// Only includes items that exist in current state (synced with backend).
+  /// R5: Filters out bookmarks with empty/invalid content.
   List<BookmarkMetadata> getMetadataList() {
     final result = <BookmarkMetadata>[];
     for (final id in state) {
       final m = _metadata[id];
-      if (m != null) {
+      // Only include bookmarks with valid content
+      if (m != null && m.content.trim().isNotEmpty) {
         result.add(m);
-      } else {
-        // Fallback for bookmarks without local metadata
-        result.add(BookmarkMetadata(
-          adviceId: id,
-          content: '',
-          bookmarkedAt: DateTime.now(),
-        ));
       }
+      // Skip bookmarks without local metadata (empty content)
     }
     result.sort((a, b) => b.bookmarkedAt.compareTo(a.bookmarkedAt));
     return result;

@@ -51,6 +51,7 @@ class ApiStory {
     required this.content,
     required this.isPublic,
     required this.likeCount,
+    required this.commentCount,
     required this.createdAt,
     required this.userId,
     required this.tags,
@@ -64,6 +65,7 @@ class ApiStory {
   final String content;
   final bool isPublic;
   final int likeCount;
+  final int commentCount;
   final DateTime createdAt;
   final String userId;
   final List<String> tags;
@@ -104,6 +106,9 @@ class ApiStory {
       likeCount: (j['likeCount'] ?? j['likes'] ?? 0) is int
           ? (j['likeCount'] ?? j['likes'] ?? 0) as int
           : int.tryParse((j['likeCount'] ?? j['likes'] ?? '0').toString()) ?? 0,
+      commentCount: (j['commentCount'] ?? 0) is int
+          ? (j['commentCount'] ?? 0) as int
+          : int.tryParse((j['commentCount'] ?? '0').toString()) ?? 0,
       createdAt: _parseDate(j['createdAt']),
       userId: (j['userId'] ?? user['id'] ?? '').toString(),
       tags: tags,

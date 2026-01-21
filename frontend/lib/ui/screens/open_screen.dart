@@ -159,6 +159,7 @@ class _OpenScreenState extends ConsumerState<OpenScreen> {
                     createdAt: post.createdAt,
                     tags: post.tags,
                     likeCount: post.likeCount,
+                    commentCount: post.commentCount,
                     isAdopted: post.acceptedCommentId != null,
                     onTap: () => context.go('/open/${post.id}'),
                   ),
