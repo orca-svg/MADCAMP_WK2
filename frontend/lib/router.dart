@@ -14,6 +14,7 @@ import 'ui/screens/my_screen.dart';
 import 'ui/screens/open_detail_screen.dart';
 import 'ui/screens/open_screen.dart';
 import 'ui/screens/tune_screen.dart';
+import 'ui/screens/bookmarks_screen.dart';
 import 'ui/shell/radio_app_shell.dart';
 
 class _TabConfig {
@@ -95,9 +96,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, _) {
               final powerOn = ref.watch(powerStateProvider);
               final isLoggedIn = ref.watch(authProvider).isSignedIn;
-              final isOpenDetail = location.startsWith('/open/') &&
-                  location != '/open';
-              final contentOverride = isOpenDetail ? child : null;
+              final isRootTab = _tabs.any((tab) => location == tab.path);
+              final contentOverride = isRootTab ? null : child;
               return RadioAppShell(
                 indicatorLabel: _tabs[tabIndex].label,
                 tabIndex: tabIndex,
@@ -199,6 +199,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'comforts',
                 builder: (context, state) => const AdoptedComfortsScreen(),
+              ),
+              GoRoute(
+                  path: '/my/bookmarks',
+                  builder: (context, state) => const BookmarksScreen(),
               ),
             ],
           ),

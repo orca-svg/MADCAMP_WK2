@@ -79,7 +79,7 @@ class MyPostsScreen extends ConsumerWidget {
                       final post = myPosts[index];
                       return _PostRow(
                         post: post,
-                        onTap: () => context.push('/open/${post.id}'),
+                        onTap: () => context.push('/my/detail/${post.id}'),
                       );
                     },
                   ),
