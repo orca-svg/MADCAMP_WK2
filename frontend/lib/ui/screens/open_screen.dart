@@ -151,12 +151,17 @@ class _OpenScreenState extends ConsumerState<OpenScreen> {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final post = filtered[index];
-                return PostPreviewCard(
-                  title: post.title,
-                  body: post.body,
-                  createdAt: post.createdAt,
-                  tags: post.tags,
-                  onTap: () => context.go('/open/${post.id}'),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: PostPreviewCard(
+                    title: post.title,
+                    body: post.body,
+                    createdAt: post.createdAt,
+                    tags: post.tags,
+                    likeCount: post.likeCount,
+                    isAdopted: post.acceptedCommentId != null,
+                    onTap: () => context.go('/open/${post.id}'),
+                  ),
                 );
               },
               childCount: filtered.length,

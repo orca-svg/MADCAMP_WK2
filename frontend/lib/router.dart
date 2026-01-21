@@ -170,15 +170,19 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: ':id',
                 builder: (context, state) {
                   final id = state.pathParameters['id'] ?? '';
+                  final from = state.uri.queryParameters['from'];
+                  final fromTheater = from == 'theater';
                   return PopScope(
                     onPopInvokedWithResult: (didPop, result) {
                       if (!didPop) return;
-                      final from = state.uri.queryParameters['from'];
-                      if (from == 'theater') {
+                      if (fromTheater) {
                         ref.read(theaterProvider.notifier).resume();
                       }
                     },
-                   child: OpenDetailScreen(postId: id),
+                    child: OpenDetailScreen(
+                      postId: id,
+                      fromTheater: fromTheater,
+                    ),
                   );
                 },
               ),

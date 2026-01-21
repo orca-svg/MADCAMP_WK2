@@ -29,9 +29,14 @@ BoxDecoration _speakerTextureDecoration() {
 }
 
 class OpenDetailScreen extends ConsumerStatefulWidget {
-  const OpenDetailScreen({super.key, required this.postId});
+  const OpenDetailScreen({
+    super.key,
+    required this.postId,
+    this.fromTheater = false,
+  });
 
   final String postId;
+  final bool fromTheater;
 
   @override
   ConsumerState<OpenDetailScreen> createState() => _OpenDetailScreenState();
@@ -194,7 +199,10 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        if (context.canPop()) {
+                        if (widget.fromTheater) {
+                          // Return to theater mode
+                          context.pop();
+                        } else if (context.canPop()) {
                           context.pop();
                         } else {
                           context.go('/open');
@@ -219,7 +227,7 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                               color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
                             ),
                             Text(
-                              '목록으로',
+                              widget.fromTheater ? '극장으로' : '목록으로',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,

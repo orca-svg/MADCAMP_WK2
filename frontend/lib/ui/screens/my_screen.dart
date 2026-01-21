@@ -185,10 +185,9 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: _CountButton(
+                          child: _CountBadge(
                             label: '내 사연',
                             count: myPostsCount,
-                            onTap: () => context.push('/my/posts'),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -259,8 +258,8 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                               createdAt: post.createdAt,
                               empathyCount: post.empathyCount,
                               isAccepted: post.acceptedCommentId != null,
-                              // ✅ 요구사항: 글 누르면 상세 라우팅
-                              onTap: () => context.push('/my/detail/${post.id}'),
+                              // ✅ 요구사항: 글 누르면 OpenDetailScreen으로 이동
+                              onTap: () => context.push('/open/${post.id}'),
                             ),
                           ),
                       ],
@@ -471,6 +470,62 @@ class _CountButton extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Non-interactive count badge (display-only, no tap action)
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({
+    required this.label,
+    required this.count,
+  });
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0x14171411),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFD7CCB9),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                count.toString(),
+                maxLines: 1,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFF2EBDD),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

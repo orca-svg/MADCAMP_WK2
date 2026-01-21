@@ -9,6 +9,8 @@ class PostPreviewCard extends StatelessWidget {
     required this.body,
     required this.createdAt,
     required this.tags,
+    this.likeCount = 0,
+    this.isAdopted = false,
     this.onTap,
   });
 
@@ -16,68 +18,101 @@ class PostPreviewCard extends StatelessWidget {
   final String body;
   final DateTime createdAt;
   final List<String> tags;
+  final int likeCount;
+  final bool isAdopted;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bodyColor = const Color(0xFFF2EBDD).withOpacity(0.90);
-    final dateColor = const Color(0xFFD7CCB9).withOpacity(0.75);
-    final tagColor = const Color(0xFFD7CCB9).withOpacity(0.92);
+    final previewColor = const Color(0xCCF2EBDD);
+    final dateColor = const Color(0x88D7CCB9);
+    final tagColor = const Color(0xAAD7CCB9);
+    final statColor = const Color(0x99D7CCB9);
 
     return Container(
-      margin: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       child: Material(
-        color: const Color(0x1AFFFFFF),
-        borderRadius: BorderRadius.circular(24),
+        color: const Color(0x1A171411),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(12),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0x1FD7CCB9)),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontFamily: _readableBodyFont,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                    color: const Color(0xFFF2EBDD),
-                  ),
+                // Top row: title + adopted icon
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: _readableBodyFont,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFF2EBDD),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      isAdopted ? Icons.verified : Icons.verified_outlined,
+                      size: 16,
+                      color: isAdopted
+                          ? const Color(0xFFF2EBDD).withValues(alpha: 0.95)
+                          : const Color(0xFFD7CCB9).withValues(alpha: 0.40),
+                    ),
+                  ],
                 ),
-                if (tags.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  _TagRow(tags: tags, textColor: tagColor),
-                  const SizedBox(height: 10),
-                ],
+                const SizedBox(height: 6),
+                // Second line: preview
                 Text(
                   body,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: TextStyle(
                     fontFamily: _readableBodyFont,
-                    fontSize: 13,
+                    fontSize: 12,
                     height: 1.35,
-                    color: bodyColor,
+                    color: previewColor,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _formatTime(createdAt),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: _readableBodyFont,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: dateColor,
+                // Third line: tags + date
+                Row(
+                  children: [
+                    if (tags.isNotEmpty) ...[
+                      Flexible(
+                        child: _TagRow(tags: tags, textColor: tagColor),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      _formatDate(createdAt),
+                      style: TextStyle(
+                        fontFamily: _readableBodyFont,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: dateColor,
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    // Stats: like count
+                    Icon(Icons.favorite_border, size: 12, color: statColor),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$likeCount',
+                      style: TextStyle(fontSize: 10, color: statColor),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -87,12 +122,8 @@ class PostPreviewCard extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final month = time.month.toString().padLeft(2, '0');
-    final day = time.day.toString().padLeft(2, '0');
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$month/$day $hour:$minute';
+  String _formatDate(DateTime dt) {
+    return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
   }
 }
 
