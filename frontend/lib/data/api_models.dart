@@ -36,7 +36,6 @@ List<Map<String, dynamic>> extractList(dynamic resData) {
 }
 
 Map<String, dynamic> extractObject(dynamic resData) {
-  if (resData is Map) return _asMap(resData);
   final m = _asMap(resData);
   for (final key in ['data', 'story', 'comment', 'result']) {
     final v = m[key];

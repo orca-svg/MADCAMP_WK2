@@ -122,6 +122,15 @@ class BoardController extends StateNotifier<BoardState> {
       open[idx] = p.copyWith(likedByMe: nextLiked, likeCount: nextCount);
       state = state.copyWith(openPosts: open);
     }
+    final mine = [...state.myPosts];
+    final mineIdx = mine.indexWhere((e) => e.id == storyId);
+    if (mineIdx >= 0) {
+      final p = mine[mineIdx];
+      final nextLiked = !p.likedByMe;
+      final nextCount = (p.likeCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
+      mine[mineIdx] = p.copyWith(likedByMe: nextLiked, likeCount: nextCount);
+      state = state.copyWith(myPosts: mine);
+    }
 
     try {
       final refreshed = await _repository.toggleStoryLike(storyId);
@@ -135,10 +144,19 @@ class BoardController extends StateNotifier<BoardState> {
           likeCount: refreshed.likeCount,
         );
       }
-      state = state.copyWith(openPosts: open2);
+      final mine2 = [...state.myPosts];
+      final mineIdx2 = mine2.indexWhere((e) => e.id == storyId);
+      if (mineIdx2 >= 0) {
+        mine2[mineIdx2] = mine2[mineIdx2].copyWith(
+          likedByMe: refreshed.likedByMe,
+          likeCount: refreshed.likeCount,
+        );
+      }
+      state = state.copyWith(openPosts: open2, myPosts: mine2);
     } catch (_) {
       // 실패 시 전체 새로고침으로 복구
       await refreshOpen();
+      await refreshMine();
       rethrow;
     }
   }
@@ -158,6 +176,8 @@ final boardControllerProvider =
 });
 
 final boardPostProvider = FutureProvider.family<BoardPost?, String>((ref, id) async {
+  // Recompute when board state changes so like state stays fresh.
+  ref.watch(boardControllerProvider);
   final controller = ref.read(boardControllerProvider.notifier);
   return controller.findById(id);
 });
