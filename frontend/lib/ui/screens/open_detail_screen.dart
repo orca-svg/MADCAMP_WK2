@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 
 import '../../data/board_repository.dart';
 import '../../data/comments_repository.dart';
@@ -44,6 +46,34 @@ class OpenDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
+  String _pickCurrentUserId(AuthState authState) {
+    String norm(dynamic v) => (v ?? '').toString().trim();
+
+    // 1) 기존에 쓰던 키(우선)
+    final a = norm(authState.userIdLikeKey);
+    if (a.isNotEmpty) return a;
+
+    // 2) authState.user(Map)에서 흔한 id 키들을 탐색
+    final dynamic u = authState.user;
+    if (u == null) return '';
+    if (u is Map<String, dynamic>) {
+      const keys = ['id', 'userId', 'uid', 'sub', '_id'];
+      for (final k in keys) {
+        final v = norm(u[k]);
+        if (v.isNotEmpty) return v;
+      }
+    } else if (u is Map) {
+      const keys = ['id', 'userId', 'uid', 'sub', '_id'];
+      for (final k in keys) {
+        final v = norm(u[k]);
+        if (v.isNotEmpty) return v;
+      }
+    }
+
+    // 3) fallback
+    return '';
+  }
+  
   final TextEditingController _commentController = TextEditingController();
 
   String? _acceptedCommentId;
@@ -52,7 +82,10 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
   void _ensureInitialized(BoardPost post) {
     if (_initializedPostId == post.id) return;
     _initializedPostId = post.id;
-    _acceptedCommentId = post.acceptedCommentId;
+    final raw = post.acceptedCommentId;
+    _acceptedCommentId = (raw == null || raw.toString().trim().isEmpty)
+        ? null
+        : raw.toString().trim();
   }
 
   Future<void> _showAdoptConfirmDialog(
@@ -231,10 +264,29 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
 
     _ensureInitialized(post);
 
-    final currentUserId = authState.userIdLikeKey;
-    // 사연 작성자 여부 판단: authorId가 유효하고 currentUserId와 일치하거나, isMine이 true
-    final authorIdValid = post.authorId != null && post.authorId!.isNotEmpty;
-    final isPostOwner = (authorIdValid && post.authorId == currentUserId) || post.isMine;
+     // ✅ current user id를 최대한 안정적으로 확보 (userIdLikeKey가 비어있는 케이스 보완)
+    final currentUserId = _pickCurrentUserId(authState);
+
+    // ✅ 작성자 판정은 isMine 우선 (레포지토리에서 계산되어 내려오는 값이 가장 안정적)
+    //    + (가능한 경우에만) authorId/userId와 비교 fallback
+    final storyOwnerId = (post.authorId ?? '').toString().trim();
+    final bool isPostOwner =
+        (post.isMine == true) ||
+        (currentUserId.isNotEmpty &&
+            storyOwnerId.isNotEmpty &&
+            storyOwnerId == currentUserId);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[OpenDetail] currentUserId="$currentUserId" storyOwnerId="$storyOwnerId" '
+        'isMine=${post.isMine} accepted(post)="${post.acceptedCommentId}" accepted(local)="$_acceptedCommentId" '
+        '=> isPostOwner=$isPostOwner',
+      );
+    }
+
+
+
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -427,9 +479,20 @@ const SizedBox(height: 8),
                       final ordered = _orderedComments(comments, _acceptedCommentId);
                       if (_acceptedCommentId == null) {
                         final best = comments.where((c) => c.isBest).toList();
-                        if (best.isNotEmpty) _acceptedCommentId = best.first.id;
+                        if (best.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            setState(() => _acceptedCommentId = best.first.id);
+                          });
+                        }
                       }
-                      final acceptEnabled = isPostOwner && _acceptedCommentId == null;
+
+                      final hasAdopted =
+                          _acceptedCommentId != null &&
+                          _acceptedCommentId!.toString().trim().isNotEmpty;
+
+                     // ✅ 작성자만 + 아직 채택 안 된 상태에서만 채택 버튼
+                     final acceptEnabled = isPostOwner && !hasAdopted;
 
                       if (commentsState.isLoading) {
                         return const Center(child: CircularProgressIndicator());
@@ -452,8 +515,12 @@ const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final comment = ordered[index];
                           final isAccepted = comment.id == _acceptedCommentId;
-                          final canDelete = isPostOwner || comment.authorId == currentUserId;
-
+                          final canDelete =
+                              isPostOwner ||
+                              ((comment.authorId ?? '')
+                                      .toString()
+                                      .trim() ==
+                                  currentUserId);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: _CommentCard(

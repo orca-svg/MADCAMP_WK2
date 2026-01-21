@@ -98,6 +98,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
 
     debugPrint('[MyScreen] refreshMine() start ($reason)');
     await ref.read(boardControllerProvider.notifier).refreshMine();
+    if (!mounted) return;
 
     // ✅ provider 캐시/파생 대비: UI 재계산 강제
     ref.invalidate(myPostsProvider);
@@ -113,6 +114,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
 
       debugPrint('[MyScreen] refreshMine() retry');
       await ref.read(boardControllerProvider.notifier).refreshMine();
+      if (!mounted) return;
       ref.invalidate(myPostsProvider);
 
       final afterRetry = ref.read(myPostsProvider);
@@ -130,7 +132,8 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     final nickname = _nicknameFromAuth(authState);
 
     final myPostsCount = myPosts.length;
-    final acceptedCount = myPosts.where((p) => p.acceptedCommentId != null).length;
+    final acceptedCount =
+     myPosts.where((p) => (p.acceptedCommentId ?? '').isNotEmpty).length;
     final bookmarkCount = bookmarks.length;
 
     debugPrint('[MyScreen] build: myPosts=${myPosts.length}');
