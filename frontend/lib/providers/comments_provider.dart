@@ -83,3 +83,9 @@ final commentsProvider =
   final repo = ref.watch(commentsRepositoryProvider);
   return CommentsController(repo, postId);
 });
+
+/// Provider for user's adopted comments (comments they authored that were accepted)
+final myAdoptedCommentsProvider = FutureProvider<List<AdoptedComment>>((ref) async {
+  final repo = ref.watch(commentsRepositoryProvider);
+  return repo.fetchMyAdoptedComments();
+});

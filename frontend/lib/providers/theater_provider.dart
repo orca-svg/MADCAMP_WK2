@@ -2,18 +2,41 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Fallback seed advices (shown when no related comments available)
+const kFallbackAdvices = [
+  '당신의 이야기를 들어줄 누군가가 있어요. 혼자가 아니에요.',
+  '지금 이 순간도 지나가요. 조금만 더 버텨주세요.',
+  '완벽하지 않아도 괜찮아요. 있는 그대로의 당신이 소중해요.',
+  '힘든 감정을 느끼는 것도 용기예요. 잘하고 있어요.',
+  '오늘 하루도 수고했어요. 당신은 충분히 잘하고 있어요.',
+  '작은 것에서 위로를 찾아보세요. 따뜻한 음료 한 잔 어떨까요?',
+  '누군가는 당신을 응원하고 있어요. 멀리서라도요.',
+  '지금 느끼는 감정은 당신만의 것이에요. 소중히 안아주세요.',
+  '쉬어도 괜찮아요. 잠시 멈춰도 괜찮아요.',
+  '당신의 존재 자체가 누군가에게는 위로가 돼요.',
+];
+
 class StarPin {
   const StarPin({
     required this.id,
     required this.title,
     required this.preview,
     required this.tags,
+    this.author = '익명',
+    this.isComfort = false,
+    this.storyId,
   });
 
   final String id;
   final String title;
   final String preview;
   final List<String> tags;
+  /// Author name (for comfort messages)
+  final String author;
+  /// True if this is a comfort message (comment), false if story
+  final bool isComfort;
+  /// Story ID this comfort belongs to (for navigation)
+  final String? storyId;
 }
 
 class TheaterState {

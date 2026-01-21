@@ -1,11 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../providers/bookmarks_provider.dart';
 import '../../providers/board_provider.dart';
+import '../../providers/comments_provider.dart';
 import '../../providers/daily_message_provider.dart';
 import '../../providers/power_provider.dart';
+
+// ✅ speaker 텍스처 (프로젝트 경로: frontend/assets/textures/fabric_grille.png)
+const String _speakerTexturePath = 'assets/textures/fabric_grille.png';
+
+// ✅ speaker 톤에 맞춘 불투명 패널 베이스
+const Color _speakerBase = Color(0xFF171411);
+const Color _divider = Color(0x22D7CCB9);
+
+BoxDecoration _speakerTextureDecoration({Alignment alignment = Alignment.center}) {
+  return BoxDecoration(
+    color: _speakerBase, // ✅ 기본이 불투명(wood 비침 방지)
+    image: DecorationImage(
+      image: const AssetImage(_speakerTexturePath),
+      fit: BoxFit.cover,
+      alignment: alignment,
+      // ✅ 텍스처 위에 어두운 필터를 얹어 "speaker와 동일한 깊이" 유지
+      colorFilter: ColorFilter.mode(
+        const Color(0xFF0B0908).withValues(alpha: 0.35),
+        BlendMode.darken,
+      ),
+    ),
+  );
+}
 
 class MyScreen extends ConsumerStatefulWidget {
   const MyScreen({super.key});
@@ -22,15 +47,20 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     final authState = ref.watch(authProvider);
     final myPosts = ref.watch(myPostsProvider);
     final bookmarks = ref.watch(bookmarksProvider);
+    final adoptedAsync = ref.watch(myAdoptedCommentsProvider);
     final theme = Theme.of(context);
+
     final nickname = authState.displayName;
     final myPostsCount = myPosts.length;
-    final acceptedCount =
-        myPosts.where((post) => post.acceptedCommentId != null).length;
+    final acceptedCount = adoptedAsync.maybeWhen(
+      data: (comments) => comments.length,
+      orElse: () => 0,
+    );
     final bookmarkCount = bookmarks.length;
 
     return CustomScrollView(
       slivers: [
+        // ✅ 상단바: wood 비침 제거 + speaker 텍스처로 불투명 상단바 구현
         SliverPersistentHeader(
           pinned: true,
           delegate: _MyHeaderDelegate(
@@ -44,120 +74,122 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                     ref.read(dailyMessageProvider.notifier).resetSession();
                     if (!mounted) return;
                     context.pushReplacement('/access');
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 800),
-                    );
+                    await Future<void>.delayed(const Duration(milliseconds: 800));
                     if (!mounted) return;
                     setState(() => _loggingOut = false);
                   },
           ),
         ),
+
+        // ✅ 헤더 아래 영역도 "동일한 speaker 톤"으로 (갈색 wood 비침 방지)
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '$nickname님이 라디오에 함께하고 있어요.',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFD7CCB9).withOpacity(0.86),
+          child: Container(
+            decoration: _speakerTextureDecoration(alignment: Alignment.topCenter),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '$nickname님이 라디오에 함께하고 있어요.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFD7CCB9).withValues(alpha: 0.86),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 54,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _CountButton(
-                          label: '내 사연',
-                          count: myPostsCount,
-                          onTap: () =>
-                              debugPrint('TODO: open my posts list'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _CountButton(
-                          label: '채택된 위로',
-                          count: acceptedCount,
-                          onTap: () => debugPrint(
-                            'TODO: open accepted comforts list',
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 54,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _CountButton(
+                            label: '내 사연',
+                            count: myPostsCount,
+                            onTap: () => context.push('/my/posts'),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _CountButton(
-                          label: '북마크',
-                          count: bookmarkCount,
-                          onTap: () =>
-                              debugPrint('TODO: open bookmarked comforts list'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CountButton(
+                            label: '채택된 위로',
+                            count: acceptedCount,
+                            onTap: () => context.push('/my/comforts'),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CountButton(
+                            label: '북마크',
+                            count: bookmarkCount,
+                            onTap: () => debugPrint('TODO: open bookmarked comforts list'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '주파수 세기',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFFD7CCB9).withOpacity(0.85),
+                  const SizedBox(height: 12),
+                  Text(
+                    '주파수 세기',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFD7CCB9).withValues(alpha: 0.85),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                _ScoreGauge(
-                  score: _calculateScore(
-                    storiesCount: myPostsCount,
-                    acceptedCount: acceptedCount,
-                    bookmarkCount: bookmarkCount,
+                  const SizedBox(height: 6),
+                  _ScoreGauge(
+                    score: _calculateScore(
+                      storiesCount: myPostsCount,
+                      acceptedCount: acceptedCount,
+                      bookmarkCount: bookmarkCount,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text('내가 쓴 사연', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 10),
-              ],
+                  const SizedBox(height: 18),
+                  Text('내가 쓴 사연', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           ),
         ),
+
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: myPosts.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        '표시할 사연이 없어요.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                  )
-                : Column(
-                    children: [
-                      for (final post in myPosts)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
-                          child: _MyPostCard(
-                            title: post.title,
-                            tags: post.tags,
-                            createdAt: post.createdAt,
-                            commentCount: 0,
-                            empathyCount: post.empathyCount,
-                            isAccepted: post.acceptedCommentId != null,
-                            onTap: () =>
-                                context.go('/my/detail/${post.id}'),
-                          ),
+          child: Container(
+            decoration: _speakerTextureDecoration(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: myPosts.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          '표시할 사연이 없어요.',
+                          style: theme.textTheme.bodyMedium,
                         ),
-                    ],
-                  ),
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (final post in myPosts)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
+                            child: _MyPostCard(
+                              title: post.title,
+                              tags: post.tags,
+                              createdAt: post.createdAt,
+                              commentCount: 0,
+                              empathyCount: post.empathyCount,
+                              isAccepted: post.acceptedCommentId != null,
+                              onTap: () => context.go('/my/detail/${post.id}'),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ],
@@ -181,16 +213,14 @@ class _MyHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 52;
 
   @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final theme = Theme.of(context);
+
     return Container(
       height: 52,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      color: const Color(0xE61F1A17),
+      // ✅ 기존: 반투명 단색(color) → speaker 텍스처 + 불투명 베이스
+      decoration: _speakerTextureDecoration(alignment: Alignment.topCenter),
       child: Stack(
         children: [
           Row(
@@ -213,10 +243,7 @@ class _MyHeaderDelegate extends SliverPersistentHeaderDelegate {
             left: 0,
             right: 0,
             bottom: 0,
-            child: Container(
-              height: 1,
-              color: const Color(0x22D7CCB9),
-            ),
+            child: Container(height: 1, color: _divider),
           ),
         ],
       ),
@@ -329,6 +356,7 @@ class _CountButton extends StatelessWidget {
     );
   }
 }
+
 class _ScoreGauge extends StatelessWidget {
   const _ScoreGauge({required this.score});
 
@@ -362,10 +390,7 @@ class _ScoreGauge extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0x24171411),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: const Color(0x2ED7CCB9),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0x2ED7CCB9), width: 1),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
@@ -395,7 +420,7 @@ class _ScoreGauge extends StatelessWidget {
           style: theme.textTheme.labelSmall?.copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFFD7CCB9).withOpacity(0.75),
+            color: const Color(0xFFD7CCB9).withValues(alpha: 0.75),
           ),
         ),
       ],
@@ -435,8 +460,9 @@ class _MyPostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final acceptColor = isAccepted
-        ? const Color(0xFFF2EBDD).withOpacity(0.95)
-        : const Color(0xFFD7CCB9).withOpacity(0.55);
+        ? const Color(0xFFF2EBDD).withValues(alpha: 0.95)
+        : const Color(0xFFD7CCB9).withValues(alpha: 0.55);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -462,7 +488,7 @@ class _MyPostCard extends StatelessWidget {
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFFF2EBDD).withOpacity(0.92),
+                        color: const Color(0xFFF2EBDD).withValues(alpha: 0.92),
                       ),
                     ),
                   ),
@@ -485,7 +511,7 @@ class _MyPostCard extends StatelessWidget {
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFFD7CCB9).withOpacity(0.70),
+                      color: const Color(0xFFD7CCB9).withValues(alpha: 0.70),
                     ),
                   ),
                   const Spacer(),
@@ -582,7 +608,7 @@ class _StatIconText extends StatelessWidget {
         Icon(
           icon,
           size: 14,
-          color: const Color(0xFFD7CCB9).withOpacity(0.72),
+          color: const Color(0xFFD7CCB9).withValues(alpha: 0.72),
         ),
         const SizedBox(width: 4),
         Text(

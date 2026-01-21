@@ -10,6 +10,24 @@ import '../../providers/comments_provider.dart';
 
 const _readableBodyFont = 'ChosunCentennial';
 
+// ✅ Speaker texture for comment area (matches speaker panel)
+const String _speakerTexturePath = 'assets/textures/fabric_grille.png';
+const Color _speakerBase = Color(0xFF171411);
+
+BoxDecoration _speakerTextureDecoration() {
+  return BoxDecoration(
+    color: _speakerBase,
+    image: DecorationImage(
+      image: const AssetImage(_speakerTexturePath),
+      fit: BoxFit.cover,
+      colorFilter: ColorFilter.mode(
+        const Color(0xFF0B0908).withValues(alpha: 0.35),
+        BlendMode.darken,
+      ),
+    ),
+  );
+}
+
 class OpenDetailScreen extends ConsumerStatefulWidget {
   const OpenDetailScreen({super.key, required this.postId});
 
@@ -140,7 +158,7 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
         child: Text(
-          '주파수를 불러올 수 없어요: $e',
+          '주파수를 불러올 수 없어요.',
           style: theme.textTheme.titleMedium,
         ),
       ),
@@ -231,19 +249,22 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            // ✅ Comment area with speaker texture background
             Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        final comments = commentsState.items;
-                        final ordered =
-                            _orderedComments(comments, _acceptedCommentId);
-                        final acceptEnabled =
-                            isPostOwner && _acceptedCommentId == null;
-                        return ListView.separated(
-                          padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                decoration: _speakerTextureDecoration(),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final comments = commentsState.items;
+                          final ordered =
+                              _orderedComments(comments, _acceptedCommentId);
+                          final acceptEnabled =
+                              isPostOwner && _acceptedCommentId == null;
+                          return ListView.separated(
+                            padding: const EdgeInsets.only(top: 12, bottom: 12),
                           itemCount: ordered.length + 1,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 12),
@@ -278,16 +299,17 @@ class _OpenDetailScreenState extends ConsumerState<OpenDetailScreen> {
                       },
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                      ),
+                      child: _CommentInputBar(
+                        controller: _commentController,
+                        onSend: () => _submitComment(post.id),
+                      ),
                     ),
-                    child: _CommentInputBar(
-                      controller: _commentController,
-                      onSend: () => _submitComment(post.id),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

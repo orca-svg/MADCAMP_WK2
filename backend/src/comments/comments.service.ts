@@ -81,6 +81,27 @@ export class CommentsService {
     }));
   }
 
+  /**
+   * Get all adopted comments authored by the current user
+   */
+  async findMyAdopted(userId: string) {
+    const comments = await this.prisma.comment.findMany({
+      where: { userId, isBest: true },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        story: { select: { id: true, title: true, createdAt: true } },
+      },
+    });
+
+    return comments.map((c) => ({
+      id: c.id,
+      content: c.content,
+      likeCount: c.likeCount,
+      createdAt: c.createdAt,
+      story: c.story,
+    }));
+  }
+
   async remove(userId: string, id: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException('Comment not found');

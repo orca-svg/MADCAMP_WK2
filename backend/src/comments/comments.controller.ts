@@ -43,6 +43,13 @@ export class CommentsController {
     return this.commentsService.findAll(storyId, req.user.id);
   }
 
+  @Get('my/adopted')
+  @ApiGetResponse(CommentEntity, 'Get adopted comments authored by current user')
+  @ResponseMessage('Adopted comments retrieved.')
+  findMyAdopted(@Req() req: any) {
+    return this.commentsService.findMyAdopted(req.user.id);
+  }
+
   @Delete(':id')
   @ApiPostResponse(CommentEntity, 'Remove a comment')
   @ResponseMessage('Comment removed.')

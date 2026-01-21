@@ -354,6 +354,7 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
     }
     buffer.shuffle(_random);
 
+    // Create story pins from posts
     final selected = buffer.take(10).toList();
     final pins = selected
         .map(
@@ -362,19 +363,25 @@ class _TuneScreenState extends ConsumerState<TuneScreen>
             title: post.title,
             preview: post.body,
             tags: post.tags.take(3).toList(),
+            isComfort: false,
           ),
         )
         .toList();
 
+    // Fill remaining with fallback comfort advices
     if (pins.length < 10) {
       final gap = 10 - pins.length;
+      final shuffledAdvices = List<String>.from(kFallbackAdvices)..shuffle(_random);
       for (int i = 0; i < gap; i++) {
+        final advice = shuffledAdvices[i % shuffledAdvices.length];
         pins.add(
           StarPin(
-            id: 'ghost_$i',
-            title: '주파수 신호',
-            preview: '잠시 연결되는 사연을 기다리고 있어요.',
-            tags: const ['#그냥_들어줘 🎧'],
+            id: 'advice_$i',
+            title: '위로의 메시지',
+            preview: advice,
+            tags: const ['#위로 💫'],
+            author: '익명',
+            isComfort: true,
           ),
         );
       }

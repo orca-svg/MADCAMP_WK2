@@ -397,7 +397,10 @@ class _RadioAppShellState extends ConsumerState<RadioAppShell> {
                     _closeBubble();
                     if (pin.title.trim().isEmpty &&
                         pin.preview.trim().isEmpty) {
-                      _closeBubble();
+                      return;
+                    }
+                    // ✅ Comfort/advice pins don't navigate - just close bubble
+                    if (pin.isComfort) {
                       return;
                     }
                     ref.read(theaterProvider.notifier).exit();
@@ -930,52 +933,69 @@ class _StarBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isComfort = pin.isComfort;
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 220, maxHeight: 140),
+      constraints: const BoxConstraints(maxWidth: 220, maxHeight: 160),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1714).withOpacity(0.92),
+              color: const Color(0xEB1A1714),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFD7CCB9).withOpacity(0.35),
+                color: const Color(0x59D7CCB9),
                 width: 1,
               ),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Color(0x59000000),
                   blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  offset: Offset(0, 10),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ✅ For comfort messages, show author first
+                if (isComfort) ...[
+                  Text(
+                    '${pin.author}님의 위로',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xBFD7CCB9),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 Text(
-                  pin.title,
-                  maxLines: 1,
+                  isComfort ? pin.preview : pin.title,
+                  maxLines: isComfort ? 3 : 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: isComfort ? 13 : 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFFF2EBDD),
+                    color: const Color(0xFFF2EBDD),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  pin.preview,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFD7CCB9),
+                if (!isComfort) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    pin.preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD7CCB9),
+                    ),
                   ),
-                ),
+                ],
                 if (pin.tags.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -990,11 +1010,11 @@ class _StarBubble extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 8),
-                const Align(
+                Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    '자세히 보기 ›',
-                    style: TextStyle(
+                    isComfort ? '탭하여 닫기' : '자세히 보기 ›',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: Color(0xBFD7CCB9),

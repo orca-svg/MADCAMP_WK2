@@ -33,6 +33,39 @@ class CommentItem {
   }
 }
 
+/// Adopted comment with associated story info
+class AdoptedComment {
+  AdoptedComment({
+    required this.id,
+    required this.content,
+    required this.likeCount,
+    required this.createdAt,
+    required this.storyId,
+    required this.storyTitle,
+  });
+
+  final String id;
+  final String content;
+  final int likeCount;
+  final DateTime createdAt;
+  final String storyId;
+  final String storyTitle;
+
+  factory AdoptedComment.fromJson(Map<String, dynamic> j) {
+    final story = j['story'] as Map<String, dynamic>? ?? {};
+    return AdoptedComment(
+      id: j['id'].toString(),
+      content: (j['content'] ?? '').toString(),
+      likeCount: (j['likeCount'] ?? 0) is int
+          ? (j['likeCount'] ?? 0) as int
+          : int.tryParse((j['likeCount'] ?? '0').toString()) ?? 0,
+      createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      storyId: (story['id'] ?? '').toString(),
+      storyTitle: (story['title'] ?? '').toString(),
+    );
+  }
+}
+
 class CommentsRepository {
   CommentsRepository(this._client);
   final DataClient _client;
@@ -90,5 +123,28 @@ class CommentsRepository {
   /// Throws on error (403: not owner, 409: already has adopted comment)
   Future<void> acceptComment(String postId, String commentId) async {
     await _dio.patch('/comments/$commentId/adopt');
+  }
+
+  /// 내가 작성하고 채택된 위로 목록: GET /comments/my/adopted
+  Future<List<AdoptedComment>> fetchMyAdoptedComments() async {
+    final res = await _dio.get('/comments/my/adopted');
+    final data = res.data;
+
+    List<dynamic> items;
+    if (data is List) {
+      items = data;
+    } else if (data is Map) {
+      items = (data['data'] as List?) ??
+          (data['items'] as List?) ??
+          (data['comments'] as List?) ??
+          [];
+    } else {
+      items = const [];
+    }
+
+    return items
+        .whereType<Map>()
+        .map((e) => AdoptedComment.fromJson(e.cast<String, dynamic>()))
+        .toList();
   }
 }

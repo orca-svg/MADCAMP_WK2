@@ -6,8 +6,10 @@ import 'providers/daily_message_provider.dart';
 import 'providers/power_provider.dart';
 import 'providers/theater_provider.dart';
 import 'ui/screens/access_screen.dart';
+import 'ui/screens/adopted_comforts_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/my_detail_screen.dart';
+import 'ui/screens/my_posts_screen.dart';
 import 'ui/screens/my_screen.dart';
 import 'ui/screens/open_detail_screen.dart';
 import 'ui/screens/open_screen.dart';
@@ -189,6 +191,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   final id = state.pathParameters['id'] ?? '';
                   return MyDetailScreen(postId: id);
                 },
+              ),
+              GoRoute(
+                path: 'posts',
+                builder: (context, state) => const MyPostsScreen(),
+              ),
+              GoRoute(
+                path: 'comforts',
+                builder: (context, state) => const AdoptedComfortsScreen(),
               ),
             ],
           ),
