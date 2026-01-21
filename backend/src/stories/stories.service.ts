@@ -1,12 +1,18 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { EmbeddingService } from 'src/embedding/embedding.service';
 
 import { CreateStoryDto } from './dto/create-story.dto';
 import { UpdateStoryDto } from './dto/update-story.dto';
 
 @Injectable()
 export class StoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(StoriesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly embeddingService: EmbeddingService,
+  ) {}
 
   /**
    * B 방식:
@@ -15,6 +21,16 @@ export class StoriesService {
    */
   async create(userId: string, createStoryDto: CreateStoryDto) {
     const { tagNames, ...storyData } = createStoryDto;
+    const embeddingText = [storyData.title, storyData.content]
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    let embedding: number[] | null = null;
+    try {
+      embedding = await this.embeddingService.embedOne(embeddingText);
+    } catch (error) {
+      this.logger.warn('Embedding failed; saving story without embedding.', error as Error);
+    }
 
     const myStory = await this.prisma.story.create({
       data: {
@@ -34,19 +50,27 @@ export class StoriesService {
     });
 
     // 유사도는 추후 vector로. 현재는 랜덤 5개.
-    const similarStories = await this.prisma.story.findMany({
-      where: { isPublic: true, id: { not: myStory.id } },
-      orderBy: { createdAt: 'desc' }, // 랜덤 대신 일단 최신 (원하시면 RANDOM() raw로 바꿔드릴게요)
-      take: 5,
-      include: {
-        tags: true,
-        user: { select: { nickname: true, image: true } },
-      },
-    });
+    let similarStories: any[] = [];
+    if (embedding) {
+      try {
+        await this._setStoryEmbedding(myStory.id, embedding);
+        similarStories = await this._findSimilarStories(
+          embedding,
+          myStory.id,
+          userId,
+          5,
+        );
+      } catch (error) {
+        this.logger.warn('Embedding save or search failed; falling back.', error as Error);
+      }
+    }
+    if (!embedding || similarStories.length === 0) {
+      similarStories = await this._findFallbackStories(myStory.id, userId, 5);
+    }
 
     return {
       myStory: this._toStoryListItem(myStory, userId),
-      similarStories: similarStories.map((s) => this._toStoryListItem(s, userId)),
+      similarStories,
     };
   }
 
@@ -85,6 +109,18 @@ export class StoriesService {
    * - acceptedCommentId: best comment id (없으면 null)
    */
   async findAll(userId: string, mineOnly = false) {
+    try {
+      const check = await this.prisma.$queryRaw`
+        SELECT id, title, embedding::text 
+        FROM "Story" 
+        WHERE embedding IS NOT NULL 
+        LIMIT 1
+      `;
+      console.log('🔎 벡터 데이터 확인:', check);
+    } catch (e) {
+      console.error('⚠️ 벡터 확인 실패:', e);
+    }
+
     const where = mineOnly ? { userId } : { isPublic: true };
     const stories = await this.prisma.story.findMany({
       where,
@@ -189,5 +225,76 @@ export class StoriesService {
       isLiked: Array.isArray(story.likes) ? story.likes.length > 0 : false,
       acceptedCommentId,
     };
+  }
+
+  private _vectorLiteral(vector: number[]) {
+    return `[${vector.join(',')}]`;
+  }
+
+  private async _setStoryEmbedding(storyId: string, vector: number[]) {
+    const literal = this._vectorLiteral(vector);
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "Story" SET "embedding" = $1::vector WHERE id = $2`,
+      literal,
+      storyId,
+    );
+  }
+
+  private async _findSimilarStories(
+    vector: number[],
+    storyId: string,
+    userId: string,
+    limit: number,
+  ) {
+    const literal = this._vectorLiteral(vector);
+    const rows = (await this.prisma.$queryRawUnsafe(
+      `SELECT id
+       FROM "Story"
+       WHERE "embedding" IS NOT NULL
+         AND "isPublic" = true
+         AND id <> $1
+       ORDER BY "embedding" <=> $2::vector
+       LIMIT $3`,
+      storyId,
+      literal,
+      limit,
+    )) as { id: string }[];
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const ids = rows.map((row) => row.id);
+    const stories = await this.prisma.story.findMany({
+      where: { id: { in: ids } },
+      include: {
+        user: { select: { nickname: true, image: true, id: true } },
+        tags: true,
+        likes: { where: { userId }, take: 1 },
+        comments: { where: { isBest: true }, select: { id: true }, take: 1 },
+      },
+    });
+
+    const storyMap = new Map(stories.map((story) => [story.id, story]));
+    return ids
+      .map((id) => storyMap.get(id))
+      .filter((story): story is NonNullable<typeof story> => Boolean(story))
+      .map((story) => this._toStoryListItem(story, userId));
+  }
+
+  private async _findFallbackStories(storyId: string, userId: string, limit: number) {
+    const stories = await this.prisma.story.findMany({
+      where: { isPublic: true, id: { not: storyId } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user: { select: { nickname: true, image: true, id: true } },
+        tags: true,
+        likes: { where: { userId }, take: 1 },
+        comments: { where: { isBest: true }, select: { id: true }, take: 1 },
+      },
+    });
+
+    return stories.map((story) => this._toStoryListItem(story, userId));
   }
 }
